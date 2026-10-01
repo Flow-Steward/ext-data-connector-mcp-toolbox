@@ -54,6 +54,26 @@ execution our parameter-binding patch (`scripts/patches/`) covers.
 5. Tag a release. Then add the new extension to the
    [catalog](https://github.com/Flow-Steward/extensions) with one entry file.
 
+## Fixing a bug, and not breaking another database
+
+The connector code is shared, so a fix in `connector/` reaches every variant, and
+the family releases under one version. CI runs on every push and pull request,
+so a change made for MySQL is proven against PostgreSQL before it is merged:
+
+| Check | Runs | Catches |
+| --- | --- | --- |
+| `scripts/check_family.py` | once | a connection type in no variant or in two, duplicate ids, a variant without `sums/` |
+| connector logic tests (`-m "not packaged"`) | once, for all 16 types | a code change that breaks any database's behaviour |
+| build + `sums/` | per variant | a binary that no longer reproduces |
+| `scripts/smoke_variant.py` | per variant, both architectures | a binary missing a type one of its prebuilts needs |
+| packaged tests (`-m "packaged or variant_contract"`) | per variant, inside the rendered extension | wrong architecture, checksums, or a variant offering what it was not built for |
+| `scripts/live_check.py` | variants with `live_checks:` | schema reading and parameter binding against a real PostgreSQL and MySQL |
+| `scripts/catalog_check.py` | per variant | an archive the extension catalog would refuse |
+
+Nothing is listed by hand per variant: ids come from the file name, the binary's
+types from Toolbox's own prebuilt YAML, the runtime's offer from `variant.json`.
+Adding a variant file is all it takes for every check to cover it.
+
 ## Release
 
 Push a tag equal to `connector/extension.yaml`'s version (`v1.0.1`). The

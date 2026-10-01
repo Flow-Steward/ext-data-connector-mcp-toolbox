@@ -42,6 +42,8 @@ def package(variant: str) -> list[Path]:
         for path in source.rglob("*")
         if path.is_file()
         and not set(path.relative_to(source).parts) & EXCLUDED_DIRECTORIES
+        # Binaries staged for the tests are added per target below, never twice.
+        and path.relative_to(source).parts[0] != "bin"
         and path.name not in EXCLUDED_FILES
     )
     written = []

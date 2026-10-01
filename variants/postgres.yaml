@@ -5,3 +5,4 @@ summary: Query PostgreSQL, AlloyDB and Cloud SQL for PostgreSQL from workflows t
 # Google MCP Toolbox prebuilt configurations this variant offers. The binary is
 # compiled with exactly the source and tool types they use, and nothing else.
 prebuilts: [postgres, alloydb-omni, alloydb-postgres, cloud-sql-postgres]
+live_checks: [postgres]

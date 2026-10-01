@@ -121,6 +121,19 @@ def render(name: str) -> Path:
 
     aliases = runtime_prebuilt_aliases()
     toolbox_prebuilts = sorted({aliases.get(prebuilt, prebuilt) for prebuilt in prebuilts})
+
+    # Provenance names this variant's build, and the package carries the sums
+    # its binaries must match (sums/<variant>.sha256, committed and verified).
+    provenance_path = out / "THIRD_PARTY.yml"
+    provenance = yaml.safe_load(provenance_path.read_text(encoding="utf-8"))
+    build = provenance.setdefault("build", {})
+    build["script"] = "scripts/build_toolbox.sh (github.com/Flow-Steward/ext-data-connector-mcp-toolbox)"
+    build.pop("excluded_native_sources", None)
+    build["registered_prebuilts"] = toolbox_prebuilts
+    provenance_path.write_text(yaml.safe_dump(provenance, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    sums = ROOT / "sums" / f"{name}.sha256"
+    if sums.is_file():
+        shutil.copyfile(sums, out / "SHA256SUMS")
     # What scripts/build_toolbox.sh compiles for: the prebuilts the runtime starts.
     (ROOT / "build" / name / "toolbox-prebuilts.txt").write_text(" ".join(toolbox_prebuilts) + "\n")
 

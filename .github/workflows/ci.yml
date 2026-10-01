@@ -1,0 +1,104 @@
+# Every push and pull request builds and checks every variant, so a change made
+# for one database is proven not to break another before it is merged. The
+# Release workflow runs this same workflow and publishes only what it built.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  family:
+    runs-on: ubuntu-latest
+    outputs:
+      variants: ${{ steps.list.outputs.variants }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: The family is consistent (coverage, ids, sums, rendered manifests)
+        run: python scripts/check_family.py
+      - name: Repository tests
+        run: python -m pytest -q tests
+      - name: Connector logic for every connection type
+        working-directory: connector
+        run: python -m pytest -q -m "not packaged" tests
+      - id: list
+        run: echo "variants=$(ls variants | sed 's/\.yaml$//' | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
+
+  variant:
+    needs: family
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJson(needs.family.outputs.variants) }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: {POSTGRES_DB: shop, POSTGRES_USER: reader, POSTGRES_PASSWORD: ci-only-password}
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U reader -d shop" --health-interval 5s --health-retries 20
+      mysql:
+        image: mysql:8.4
+        env: {MYSQL_DATABASE: shop, MYSQL_USER: reader, MYSQL_PASSWORD: ci-only-password, MYSQL_ROOT_PASSWORD: ci-only-root}
+        ports: ["3306:3306"]
+        options: --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pci-only-root" --health-interval 5s --health-retries 30
+    env:
+      DB_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      # Runs the linux-arm64 binary on this amd64 runner for the packaged tests.
+      - uses: docker/setup-qemu-action@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Render the extension
+        run: python scripts/render_variant.py "${{ matrix.variant }}"
+      - name: Build Google MCP Toolbox with only this variant's types
+        run: sh scripts/build_toolbox.sh "${{ matrix.variant }}"
+      - name: The binaries are the ones sums/ publishes
+        run: sh scripts/verify_binaries.sh "${{ matrix.variant }}"
+      - name: Every prebuilt starts on both runtime targets
+        run: |
+          python scripts/smoke_variant.py "${{ matrix.variant }}" --binary "build/${{ matrix.variant }}/bin/linux-amd64/toolbox"
+          python scripts/smoke_variant.py "${{ matrix.variant }}" --binary "build/${{ matrix.variant }}/bin/linux-arm64/toolbox"
+      - name: Packaged tests inside the rendered extension
+        run: |
+          folder=$(ls -d build/${{ matrix.variant }}/flowsteward_*)
+          cp -R "build/${{ matrix.variant }}/bin" "$folder/"
+          cd "$folder" && python -m pytest -q -m "packaged or variant_contract" tests
+      - name: Against a real database
+        run: |
+          checks=$(python -c "import yaml,sys; print(' '.join(yaml.safe_load(open('variants/${{ matrix.variant }}.yaml')).get('live_checks') or []))")
+          [ -n "$checks" ] || { echo "no live database for this variant"; exit 0; }
+          PGPASSWORD=$DB_PASSWORD psql -h 127.0.0.1 -U reader -d shop -qc \
+            "create table products (sku text primary key, name text not null, stock int not null); insert into products values ('A-1','Blue mug',12),('B-2','Red plate',0);"
+          mysql -h 127.0.0.1 -ureader -p"$DB_PASSWORD" shop -e \
+            "create table products (sku varchar(20) primary key, name varchar(100) not null, stock int not null); insert into products values ('A-1','Blue mug',12),('B-2','Red plate',0);"
+          for prebuilt in $checks; do
+            case "$prebuilt" in
+              postgres) port=5432 ;;
+              mysql|mariadb) port=3306 ;;
+              *) echo "::error::no CI database for $prebuilt"; exit 1 ;;
+            esac
+            python scripts/live_check.py "${{ matrix.variant }}" --prebuilt "$prebuilt" \
+              --host 127.0.0.1 --port "$port" --database shop --user reader --password-env DB_PASSWORD
+          done
+      - name: Package one archive per runtime target
+        run: python scripts/package_variant.py "${{ matrix.variant }}"
+      - name: The catalog would accept every archive
+        run: python scripts/catalog_check.py dist/*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.variant }}
+          path: dist/*.zip
+          if-no-files-found: error

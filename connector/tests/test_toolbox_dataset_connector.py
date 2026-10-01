@@ -41,6 +41,11 @@ EXPECTED_DATASET_PREBUILTS = {
     "sqlite",
 }
 
+# A release renders one extension per database family (see the repository's
+# variants/); variant.json then names the prebuilts this package offers.
+_VARIANT_FILE = EXTENSION_ROOT / "variant.json"
+VARIANT = json.loads(_VARIANT_FILE.read_text(encoding="utf-8")) if _VARIANT_FILE.is_file() else None
+
 EXPECTED_PARAMETER_BINDERS = {
     "alloydb-omni": "numbered",
     "alloydb-postgres": "numbered",
@@ -432,11 +437,16 @@ def test_toolbox_dataset_connector_smoke_check() -> None:
     assert {"customers", "orders"}.issubset(set(payload["resources"]))
 
 
+@pytest.mark.variant_contract
 def test_toolbox_dataset_connector_manifest_is_author_friendly() -> None:
     descriptor = yaml.safe_load((EXTENSION_ROOT / "extension.yaml").read_text(encoding="utf-8"))
     contract = descriptor["runtime"]["extension_contract_v2"]
 
-    assert descriptor["extension_id"] == "flowsteward.toolbox-dataset-connector"
+    if VARIANT:
+        assert descriptor["extension_id"].startswith("flowsteward.data-connector-mcp-toolbox-")
+        assert descriptor["display_name"] == VARIANT["display_name"]
+    else:
+        assert descriptor["extension_id"] == "flowsteward.toolbox-dataset-connector"
     assert descriptor["kind"] == "tool_provider"
     assert descriptor["package"]["format"] == "flow-steward-extension"
     assert "tool" in descriptor["features"]
@@ -444,13 +454,15 @@ def test_toolbox_dataset_connector_manifest_is_author_friendly() -> None:
     connector = contract["dataset_connectors"][0]
     assert connector["connector_id"] == "toolbox_database"
     assert connector["source_provider"] == "Google MCP Toolbox"
-    assert DATASET_PREBUILTS == EXPECTED_DATASET_PREBUILTS
+    expected = set(VARIANT["prebuilts"]) if VARIANT else EXPECTED_DATASET_PREBUILTS
+    assert DATASET_PREBUILTS == expected
+    assert DATASET_PREBUILTS <= EXPECTED_DATASET_PREBUILTS
     assert "oracle" not in DATASET_PREBUILTS
     assert "oracledb" not in DATASET_PREBUILTS
     catalog = {row["connector_type_id"]: row for row in connector.get("connector_catalog", [])}
-    assert catalog["toolbox_postgres"]["source_kind"] == "postgres"
-    assert catalog["toolbox_mysql"]["source_kind"] == "mysql"
-    assert catalog["toolbox_mariadb"]["source_kind"] == "mariadb"
+    for prebuilt in ("postgres", "mysql", "mariadb"):
+        if prebuilt in DATASET_PREBUILTS:
+            assert catalog[f"toolbox_{prebuilt}"]["source_kind"] == prebuilt
     assert set(catalog) == {
         f"toolbox_{prebuilt.replace('-', '_')}" for prebuilt in DATASET_PREBUILTS
     }
@@ -758,6 +770,7 @@ def _write_test_elf(path: Path, *, machine: int) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+@pytest.mark.packaged
 def test_packaged_toolbox_artifacts_are_pinned_and_bounded() -> None:
     provenance = yaml.safe_load((EXTENSION_ROOT / "THIRD_PARTY.yml").read_text(encoding="utf-8"))
     expected = {"linux-amd64": 62, "linux-arm64": 183}
@@ -768,8 +781,15 @@ def test_packaged_toolbox_artifacts_are_pinned_and_bounded() -> None:
     assert provenance["commit"] == "b0010060a939455d91e4f8ba62dc3e72b1892469"
     assert provenance["source_url"] == "https://github.com/googleapis/mcp-toolbox"
     assert provenance["build"]["targets"] == sorted(expected)
-    assert provenance["build"]["excluded_native_sources"] == ["oracle"]
-    assert provenance["build"]["registered_prebuilts"] == "all_except_oracledb"
+    if VARIANT:
+        # A variant's binary registers exactly the prebuilts it offers.
+        expected_prebuilts = sorted(
+            {EXPECTED_RUNTIME_PREBUILT_ALIASES.get(p, p) for p in VARIANT["prebuilts"]}
+        )
+        assert provenance["build"]["registered_prebuilts"] == expected_prebuilts
+    else:
+        assert provenance["build"]["excluded_native_sources"] == ["oracle"]
+        assert provenance["build"]["registered_prebuilts"] == "all_except_oracledb"
     assert provenance["build"]["network_at_install_or_runtime"] is False
 
     checksum_rows = {}
@@ -792,6 +812,7 @@ def test_packaged_toolbox_artifacts_are_pinned_and_bounded() -> None:
     assert (EXTENSION_ROOT / "NOTICE").is_file()
 
 
+@pytest.mark.packaged
 @pytest.mark.skipif(
     platform.system() != "Linux",
     reason="packaged toolbox binaries are Linux-only; run inside the test container",
@@ -831,6 +852,7 @@ def test_packaged_toolbox_registers_every_declared_runtime_source(
     assert "unknown source type" not in (completed.stderr or completed.stdout).lower()
 
 
+@pytest.mark.packaged
 def test_checksum_verifier_fails_closed_on_mismatch(tmp_path) -> None:
     checksums = tmp_path / "SHA256SUMS"
     checksums.write_text(
@@ -856,6 +878,7 @@ def test_checksum_verifier_fails_closed_on_mismatch(tmp_path) -> None:
     assert "checksum mismatch" in completed.stderr
 
 
+@pytest.mark.packaged
 def test_checksum_verifier_requires_both_binaries_for_source_bundle(tmp_path) -> None:
     relative = "bin/linux-amd64/toolbox"
     checksums = tmp_path / "source-SHA256SUMS"
@@ -945,20 +968,7 @@ def test_checksum_verifier_rejects_target_binary_checksum_mismatch(tmp_path) -> 
     assert f"checksum mismatch: {relative}" in completed.stderr
 
 
-def test_reproducible_build_script_pins_toolchain_and_upstream() -> None:
-    script = (EXTENSION_ROOT / "scripts" / "build_toolbox_binaries.sh").read_text(encoding="utf-8")
-
-    assert "golang:1.26.2-bookworm" in script
-    assert "TOOLBOX_TAG=v1.3.0" in script
-    assert "b0010060a939455d91e4f8ba62dc3e72b1892469" in script
-    assert "CGO_ENABLED=0" in script
-    assert "cmd/internal/imports.go" in script
-    assert r"tools\\/oracle" in script
-    assert r"sources\\/oracle" in script
-    assert "-p 1" in script
-    assert "docker" in script.lower()
-
-
+@pytest.mark.packaged
 @pytest.mark.parametrize(
     ("machine", "target"),
     [("x86_64", "linux-amd64"), ("aarch64", "linux-arm64")],
@@ -976,6 +986,7 @@ def test_toolbox_command_selects_only_the_running_target(
     assert command == [str(EXTENSION_ROOT / "bin" / target / "toolbox")]
 
 
+@pytest.mark.packaged
 def test_toolbox_command_ignores_environment_injection(monkeypatch) -> None:
     module = _load_main_module()
     monkeypatch.setattr(module, "_TOOLBOX_COMMAND_OVERRIDE", None)
