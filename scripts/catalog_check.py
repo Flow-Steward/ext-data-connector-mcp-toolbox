@@ -40,6 +40,8 @@ def main(paths: list[str]) -> int:
         script.write_bytes(source)
         spec = importlib.util.spec_from_file_location("catalog_build_index", script)
         catalog = importlib.util.module_from_spec(spec)
+        # Registered first: its dataclasses resolve their own module by name.
+        sys.modules[spec.name] = catalog
         spec.loader.exec_module(catalog)
     failures = 0
     for path in paths:
