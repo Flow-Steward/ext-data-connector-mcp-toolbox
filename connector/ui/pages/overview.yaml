@@ -1,0 +1,5 @@
+page_id: overview
+title: Overview
+description: Reference extension summary and contract notes.
+components:
+  - ref: ../components/overview.yaml

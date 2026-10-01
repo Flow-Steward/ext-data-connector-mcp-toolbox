@@ -1,0 +1,314 @@
+manifest_version: 2
+lifecycle: {data_schema_version: 1, data_migrations: []}
+extension_id: flowsteward.toolbox-dataset-connector
+kind: tool_provider
+version: 1.0.0
+release_stage: active
+display_name: Toolbox Dataset Connector
+description: Dataset connector backed by a packaged Google MCP Toolbox for Databases runtime.
+vendor:
+  name: Flow Steward
+  support_url: https://github.com/Flow-Steward/ext-data-connector-mcp-toolbox/issues
+  website_url: https://github.com/Flow-Steward/ext-data-connector-mcp-toolbox
+listing:
+  category: data
+  tags: [dataset, database, postgres, google-mcp-toolbox]
+  summary: Project-scoped database access through a packaged Google MCP Toolbox runtime.
+  description: Connect workspace datasets to Google MCP Toolbox database prebuilts through the Flow Steward extension runtime.
+package:
+  format: flow-steward-extension
+  license: Apache-2.0
+  includes_source: true
+billing_mode: free
+upgrade_notes: Initial reference release. No migration is required.
+screenshots:
+  - label: Overview
+    description: Declarative overview page for the reference dataset connector.
+    path: ui/components/overview.yaml
+features:
+  - tool
+  - dataset_connector
+  - action
+  - query
+required_scopes:
+  - extension:invoke
+machine_auth:
+  service_account_key: svc_ext_toolbox_dataset_connector
+  required_scopes:
+    - extension:invoke
+account_scope:
+  scope_type: project
+  description: Toolbox dataset connector connections are project-scoped and resolved through project connection config and secrets.
+schemas:
+  config: schemas/config.schema.yaml
+  secrets: schemas/secrets.schema.yaml # pragma: allowlist secret
+  subscriptions: schemas/subscriptions.schema.yaml
+entrypoint:
+  mode: subprocess
+  command:
+    - python3
+    - main.py
+health:
+  command:
+    - python3
+    - health.py
+  timeout_seconds: 5
+ui_manifest: ui/ui_manifest.yaml
+query_manifest: ui/queries/queries.yaml
+action_manifest: ui/actions/actions.yaml
+runtime:
+  extension_contract_v2:
+    dataset_connectors:
+      - connector_id: toolbox_database
+        connector_type_id: toolbox_database
+        database_kind: database
+        display_name: Google MCP Toolbox database source
+        description: Read-only schema introspection and saved-template execution through Google MCP Toolbox database sources.
+        source_kind: database
+        source_extension_id: flowsteward.toolbox-dataset-connector
+        source_extension_name: Toolbox Dataset Connector
+        source_provider: Google MCP Toolbox
+        query_language: sql
+        access_mode: read_only
+        runtime_kind: local_extension
+        runtime_adapter_ref: extensions/flowsteward_toolbox_dataset_connector/main.py
+        connector_catalog:
+          - {source_kind: alloydb-omni, connector_type_id: toolbox_alloydb_omni, display_name: AlloyDB Omni, query_language: sql, preset_config: {prebuilt: alloydb-omni}}
+          - {source_kind: alloydb-postgres, connector_type_id: toolbox_alloydb_postgres, display_name: AlloyDB for PostgreSQL, query_language: sql, preset_config: {prebuilt: alloydb-postgres}}
+          - {source_kind: clickhouse, connector_type_id: toolbox_clickhouse, display_name: ClickHouse, query_language: sql, preset_config: {prebuilt: clickhouse}}
+          - {source_kind: cloud-sql-mssql, connector_type_id: toolbox_cloud_sql_mssql, display_name: Cloud SQL for SQL Server, query_language: sql, preset_config: {prebuilt: cloud-sql-mssql}}
+          - {source_kind: cloud-sql-mysql, connector_type_id: toolbox_cloud_sql_mysql, display_name: Cloud SQL for MySQL, query_language: sql, preset_config: {prebuilt: cloud-sql-mysql}}
+          - {source_kind: cloud-sql-postgres, connector_type_id: toolbox_cloud_sql_postgres, display_name: Cloud SQL for PostgreSQL, query_language: sql, preset_config: {prebuilt: cloud-sql-postgres}}
+          - {source_kind: mariadb, connector_type_id: toolbox_mariadb, display_name: MariaDB, query_language: sql, preset_config: {prebuilt: mariadb}}
+          - {source_kind: mssql, connector_type_id: toolbox_mssql, display_name: Microsoft SQL Server, query_language: sql, preset_config: {prebuilt: mssql}}
+          - {source_kind: mysql, connector_type_id: toolbox_mysql, display_name: MySQL, query_language: sql, preset_config: {prebuilt: mysql}}
+          - {source_kind: oceanbase, connector_type_id: toolbox_oceanbase, display_name: OceanBase, query_language: sql, preset_config: {prebuilt: oceanbase}}
+          - {source_kind: postgres, connector_type_id: toolbox_postgres, display_name: Postgres, query_language: sql, preset_config: {prebuilt: postgres}}
+          - {source_kind: singlestore, connector_type_id: toolbox_singlestore, display_name: SingleStore, query_language: sql, preset_config: {prebuilt: singlestore}}
+          - {source_kind: snowflake, connector_type_id: toolbox_snowflake, display_name: Snowflake, query_language: sql, preset_config: {prebuilt: snowflake}}
+          - {source_kind: spanner, connector_type_id: toolbox_spanner, display_name: Spanner (GoogleSQL), query_language: googlesql, preset_config: {prebuilt: spanner}}
+          - {source_kind: spanner-postgres, connector_type_id: toolbox_spanner_postgres, display_name: Spanner (PostgreSQL), query_language: sql, preset_config: {prebuilt: spanner-postgres}}
+          - {source_kind: sqlite, connector_type_id: toolbox_sqlite, display_name: SQLite, query_language: sql, preset_config: {prebuilt: sqlite}}
+        connection_schema:
+          type: object
+          additionalProperties: false
+          required:
+            - prebuilt
+          properties:
+            prebuilt:
+              type: string
+              title: Toolbox source
+              enum:
+                - alloydb-omni
+                - alloydb-postgres
+                - clickhouse
+                - cloud-sql-mssql
+                - cloud-sql-mysql
+                - cloud-sql-postgres
+                - mariadb
+                - mssql
+                - mysql
+                - oceanbase
+                - postgres
+                - singlestore
+                - snowflake
+                - spanner
+                - spanner-postgres
+                - sqlite
+              description: Google MCP Toolbox source selected by the connector type.
+            database:
+              type: string
+              title: Database or dataset
+              description: Database, dataset, namespace, or local file value used by this Toolbox source when applicable.
+            host:
+              type: string
+              title: Host
+              description: Host for networked Toolbox sources when applicable.
+            port:
+              type: integer
+              minimum: 1
+              maximum: 65535
+              title: Port
+              description: Port for networked Toolbox sources when applicable.
+            user:
+              type: string
+              title: User
+              description: User name for sources that authenticate with a database user.
+            query_params:
+              type: string
+              title: Query params
+              description: Optional connection query params passed to Toolbox when supported by the source.
+            account:
+              type: string
+              title: Account
+            project:
+              type: string
+              title: Cloud project
+            region:
+              type: string
+              title: Cloud region
+            cluster:
+              type: string
+              title: Cluster
+            instance:
+              type: string
+              title: Instance
+            ip_type:
+              type: string
+              title: IP type
+            protocol:
+              type: string
+              title: Protocol
+            schema:
+              type: string
+              title: Schema
+            warehouse:
+              type: string
+              title: Warehouse
+            role:
+              type: string
+              title: Role
+            dialect:
+              type: string
+              title: SQL dialect
+            env:
+              type: object
+              title: Public Toolbox env vars
+              additionalProperties:
+                type: string
+          # Conditional requirements, declared rather than assumed. Kept in step with
+          # schemas/config.schema.yaml - the platform serves and validates against THIS
+          # inline copy, so a rule present only in the file would never run.
+          allOf:
+            - if:
+                properties: {prebuilt: {enum: [alloydb-omni, clickhouse, mariadb, mssql, mysql, oceanbase, postgres, singlestore]}}
+                required: [prebuilt]
+              then:
+                required: [host, database, user]
+            - if:
+                properties: {prebuilt: {enum: [cloud-sql-mssql, cloud-sql-mysql, cloud-sql-postgres]}}
+                required: [prebuilt]
+              then:
+                required: [project, region, instance, database, user]
+            - if:
+                properties: {prebuilt: {const: alloydb-postgres}}
+                required: [prebuilt]
+              then:
+                required: [project, region, cluster, instance, database, user]
+            - if:
+                properties: {prebuilt: {const: snowflake}}
+                required: [prebuilt]
+              then:
+                required: [account, user, database]
+            - if:
+                properties: {prebuilt: {enum: [spanner, spanner-postgres]}}
+                required: [prebuilt]
+              then:
+                required: [project, instance, database]
+            - if:
+                properties: {prebuilt: {const: sqlite}}
+                required: [prebuilt]
+              then:
+                required: [database]
+              description: Optional explicit Toolbox environment variables.
+        secret_schema:
+          type: object
+          additionalProperties: false
+          properties:
+            password: # pragma: allowlist secret
+              type: string
+              title: Password
+              description: Database password for networked Toolbox prebuilts.
+        capabilities:
+          read_only: true
+          test_connection: true
+          schema_introspection: true
+          validate_query: true
+          preview_query: true
+          execute_template: true
+          infer_output_schema: true
+          write_queries: false
+          row_preview: true
+        safety_profile:
+          access_mode: read_only
+          indexes_rows: false
+          executes_write_queries: false
+          requires_saved_template: true
+        preview_support: true
+        schema_refresh_support: true
+    operation_manifest:
+      - operation_id: test_connection
+        workflow_visible: false
+        operation_kind: action
+        description: Validate that Google MCP Toolbox can list tables for the configured prebuilt database.
+        required_scopes: [extension:invoke]
+        result_fields: [result.status, result.connector_id, result.metadata.toolbox_prebuilt]
+        error_codes: [invalid_config, not_found, permission_denied, connector_runtime_failed, unknown_action]
+      - operation_id: introspect_schema
+        workflow_visible: false
+        operation_kind: action
+        description: Return a normalized typed schema snapshot from Google MCP Toolbox list_tables output.
+        required_scopes: [extension:invoke]
+        result_fields:
+          - result.schema_snapshot.schema_version
+          - result.schema_snapshot.resources[].resource_id
+          - result.schema_snapshot.resources[].columns[].name
+          - result.schema_snapshot.resources[].indexes[].columns[]
+          - result.resource_count
+        error_codes: [invalid_config, not_found, permission_denied, connector_runtime_failed, unknown_action]
+      - operation_id: validate_query
+        workflow_visible: false
+        operation_kind: action
+        description: Validate a saved read-only query template against dataset resource scope.
+        required_scopes: [extension:invoke]
+        result_fields:
+          - result.valid
+          - result.read_only
+          - result.referenced_resources[]
+        error_codes: [invalid_config, connector_runtime_failed, unknown_action]
+      - operation_id: preview_query
+        workflow_visible: false
+        operation_kind: action
+        description: Execute a bounded read-only preview for a validated query template.
+        required_scopes: [extension:invoke]
+        result_fields:
+          - result.rows[]
+          - result.row_count
+          - result.output_schema
+        error_codes: [invalid_config, connector_runtime_failed, unknown_action]
+      - operation_id: execute_template
+        workflow_visible: false
+        operation_kind: action
+        description: Execute a saved read-only query template with named parameters and runtime row limits.
+        required_scopes: [extension:invoke]
+        result_fields:
+          - result.rows[]
+          - result.row_count
+          - result.output_schema
+          - result.truncated
+        error_codes: [invalid_config, connector_runtime_failed, unknown_action]
+      - operation_id: infer_output_schema
+        workflow_visible: false
+        operation_kind: action
+        description: Infer output schema from a bounded read-only preview of the query template.
+        required_scopes: [extension:invoke]
+        result_fields: [result.output_schema]
+        error_codes: [invalid_config, connector_runtime_failed, unknown_action]
+    resource_query_manifest:
+      - query_id: runtime_health
+        cursor_mode: none
+        description: Return extension runtime health.
+        required_scopes: [extension:invoke]
+        result_fields: [result.status, result.extension_id]
+        error_codes: [unknown_query, connector_runtime_failed]
+      - query_id: supported_connectors
+        cursor_mode: none
+        description: Return the supported connector catalog for this extension.
+        required_scopes: [extension:invoke]
+        result_fields:
+          - result.connectors[].connector_type_id
+          - result.connectors[].display_name
+          - result.connectors[].database_kind
+          - result.connectors[].source_provider
+          - result.connectors[].access_mode
+        error_codes: [unknown_query, connector_runtime_failed]

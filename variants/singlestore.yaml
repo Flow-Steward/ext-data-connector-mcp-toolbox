@@ -1,0 +1,4 @@
+name: singlestore
+display_name: SingleStore (Google MCP Toolbox)
+summary: Query SingleStore from workflows through Google MCP Toolbox.
+prebuilts: [singlestore]

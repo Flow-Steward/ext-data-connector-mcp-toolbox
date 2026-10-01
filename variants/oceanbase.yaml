@@ -1,0 +1,4 @@
+name: oceanbase
+display_name: OceanBase (Google MCP Toolbox)
+summary: Query OceanBase from workflows through Google MCP Toolbox.
+prebuilts: [oceanbase]

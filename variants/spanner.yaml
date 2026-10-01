@@ -1,0 +1,4 @@
+name: spanner
+display_name: Spanner (Google MCP Toolbox)
+summary: Query Google Cloud Spanner with GoogleSQL or the PostgreSQL dialect from workflows through Google MCP Toolbox.
+prebuilts: [spanner, spanner-postgres]

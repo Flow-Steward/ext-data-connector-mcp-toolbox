@@ -1,0 +1,70 @@
+actions:
+  - action_id: test_connection
+    workflow_visible: false
+    title: Test database connection
+    description: Validate the configured database connection through Google MCP Toolbox.
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    mutates_platform: false
+    result_fields: [result.status, result.connector_id, result.metadata.toolbox_prebuilt]
+    error_codes: [invalid_config, not_found, permission_denied, connector_runtime_failed, unknown_action]
+  - action_id: introspect_schema
+    workflow_visible: false
+    title: Introspect database schema
+    description: Return a typed dataset_schema_snapshot.v1 resource list.
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    mutates_platform: false
+    result_fields:
+      - result.schema_snapshot.schema_version
+      - result.schema_snapshot.resources[].resource_id
+      - result.schema_snapshot.resources[].columns[].name
+      - result.schema_snapshot.resources[].indexes[].columns[]
+      - result.resource_count
+    error_codes: [invalid_config, not_found, permission_denied, connector_runtime_failed, unknown_action]
+  - action_id: validate_query
+    workflow_visible: false
+    title: Validate query template
+    description: Validate read-only SQL and dataset resource scope.
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    mutates_platform: false
+    result_fields:
+      - result.valid
+      - result.read_only
+      - result.referenced_resources[]
+    error_codes: [invalid_config, connector_runtime_failed, unknown_action]
+  - action_id: preview_query
+    workflow_visible: false
+    title: Preview query template
+    description: Execute a bounded read-only preview.
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    mutates_platform: false
+    result_fields:
+      - result.rows[]
+      - result.row_count
+      - result.output_schema
+    error_codes: [invalid_config, connector_runtime_failed, unknown_action]
+  - action_id: execute_template
+    workflow_visible: false
+    title: Execute query template
+    description: Execute a saved read-only query template.
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    mutates_platform: false
+    result_fields:
+      - result.rows[]
+      - result.row_count
+      - result.output_schema
+      - result.truncated
+    error_codes: [invalid_config, connector_runtime_failed, unknown_action]
+  - action_id: infer_output_schema
+    workflow_visible: false
+    title: Infer output schema
+    description: Infer output schema from a bounded preview.
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    mutates_platform: false
+    result_fields: [result.output_schema]
+    error_codes: [invalid_config, connector_runtime_failed, unknown_action]

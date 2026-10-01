@@ -1,0 +1,4 @@
+name: sqlite
+display_name: SQLite (Google MCP Toolbox)
+summary: Query a SQLite database file from workflows through Google MCP Toolbox.
+prebuilts: [sqlite]

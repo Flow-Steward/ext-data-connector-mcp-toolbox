@@ -1,0 +1,4 @@
+name: clickhouse
+display_name: ClickHouse (Google MCP Toolbox)
+summary: Query ClickHouse from workflows through Google MCP Toolbox.
+prebuilts: [clickhouse]

@@ -1,0 +1,4 @@
+name: mssql
+display_name: Microsoft SQL Server (Google MCP Toolbox)
+summary: Query Microsoft SQL Server and Cloud SQL for SQL Server from workflows through Google MCP Toolbox.
+prebuilts: [mssql, cloud-sql-mssql]

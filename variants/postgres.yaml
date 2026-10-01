@@ -1,0 +1,7 @@
+# One variant = one Flow Steward extension: flowsteward.data-connector-mcp-toolbox-<name>.
+name: postgres
+display_name: PostgreSQL (Google MCP Toolbox)
+summary: Query PostgreSQL, AlloyDB and Cloud SQL for PostgreSQL from workflows through Google MCP Toolbox.
+# Google MCP Toolbox prebuilt configurations this variant offers. The binary is
+# compiled with exactly the source and tool types they use, and nothing else.
+prebuilts: [postgres, alloydb-omni, alloydb-postgres, cloud-sql-postgres]

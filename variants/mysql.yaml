@@ -1,0 +1,4 @@
+name: mysql
+display_name: MySQL and MariaDB (Google MCP Toolbox)
+summary: Query MySQL, MariaDB and Cloud SQL for MySQL from workflows through Google MCP Toolbox.
+prebuilts: [mysql, mariadb, cloud-sql-mysql]

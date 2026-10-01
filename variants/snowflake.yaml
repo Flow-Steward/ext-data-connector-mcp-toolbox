@@ -1,0 +1,4 @@
+name: snowflake
+display_name: Snowflake (Google MCP Toolbox)
+summary: Query Snowflake from workflows through Google MCP Toolbox.
+prebuilts: [snowflake]

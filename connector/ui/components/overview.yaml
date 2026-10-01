@@ -1,0 +1,4 @@
+component_id: toolbox_dataset_connector_overview
+type: markdown
+title: Toolbox Dataset Connector
+body: Reference dataset connector extension that wraps Google MCP Toolbox for Databases. It exposes read-only test, schema introspection, validation, preview, execution, and output-schema inference actions with typed schema snapshots.

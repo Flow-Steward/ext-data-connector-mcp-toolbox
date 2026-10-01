@@ -1,0 +1,73 @@
+# Push a tag matching connector/extension.yaml's version (`git tag v1.0.1 && git push --tags`).
+# Every variant is built, checked against sums/<variant>.sha256 and packaged; one
+# GitHub Release carries all of them, and the Flow Steward extension catalog picks
+# each variant up within the hour.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  variants:
+    runs-on: ubuntu-latest
+    outputs:
+      names: ${{ steps.list.outputs.names }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: echo "names=$(ls variants | sed 's/\.yaml$//' | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
+      - name: The tag must match connector/extension.yaml
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(sed -n 's/^version:[[:space:]]*//p' connector/extension.yaml | tr -d "'\"")
+          test "${GITHUB_REF_NAME}" = "v${version}" \
+            || { echo "::error::tag ${GITHUB_REF_NAME} does not match version ${version}"; exit 1; }
+
+  build:
+    needs: variants
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        variant: ${{ fromJson(needs.variants.outputs.names) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install PyYAML==6.0.3
+      - name: Render the extension
+        run: python scripts/render_variant.py "${{ matrix.variant }}"
+      - name: Build Google MCP Toolbox with only this variant's types
+        run: sh scripts/build_toolbox.sh "${{ matrix.variant }}"
+      - name: The binaries are the ones sums/ publishes
+        run: sh scripts/verify_binaries.sh "${{ matrix.variant }}"
+      - name: Package one archive per runtime target
+        run: python scripts/package_variant.py "${{ matrix.variant }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.variant }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${GITHUB_REF_NAME}" dist/*.zip
+          --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes
