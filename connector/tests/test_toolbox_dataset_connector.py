@@ -59,6 +59,23 @@ EXPECTED_DATASET_PREBUILTS = {
 # variants/); variant.json then names the prebuilts this package offers.
 _VARIANT_FILE = EXTENSION_ROOT / "variant.json"
 VARIANT = json.loads(_VARIANT_FILE.read_text(encoding="utf-8")) if _VARIANT_FILE.is_file() else None
+OFFERED_PREBUILTS = set(VARIANT["prebuilts"]) if VARIANT else EXPECTED_DATASET_PREBUILTS
+
+
+def offered(*prebuilts: str) -> pytest.MarkDecorator:
+    """Skip a check for a database family this package does not offer.
+
+    A rendered variant's runtime refuses every other family, so the check runs
+    in the variant that offers it and always in the shared connector.
+    """
+    missing = sorted(set(prebuilts) - OFFERED_PREBUILTS)
+    return pytest.mark.skipif(bool(missing), reason=f"this variant does not offer {missing}")
+
+
+def by_prebuilt(*cases: tuple) -> list:
+    """Parametrize cases whose first value is a prebuilt, each skipped unless offered."""
+    return [pytest.param(*case, marks=offered(case[0])) for case in cases]
+
 
 EXPECTED_PARAMETER_BINDERS = {
     "alloydb-omni": "numbered",
@@ -82,6 +99,13 @@ EXPECTED_RUNTIME_PREBUILT_ALIASES = {"mariadb": "mysql"}
 
 
 def toolbox_postgres_config() -> dict[str, str]:
+    """A PostgreSQL connection, the sample the shared runtime checks run on.
+
+    Those checks are the same code in every variant; a variant without
+    PostgreSQL skips them, the shared connector and the postgres variant run them.
+    """
+    if "postgres" not in OFFERED_PREBUILTS:
+        pytest.skip("samples a PostgreSQL connection; this variant does not offer postgres")
     return {
         "prebuilt": "postgres",
         "host": "postgres.test",
@@ -108,7 +132,8 @@ def test_parameter_binders_cover_every_advertised_connector() -> None:
     module = _runtime_module()
 
     assert module._PARAMETER_BINDERS == EXPECTED_PARAMETER_BINDERS
-    assert set(module._PARAMETER_BINDERS) == DATASET_PREBUILTS
+    assert set(module._PARAMETER_BINDERS) == EXPECTED_DATASET_PREBUILTS
+    assert DATASET_PREBUILTS == OFFERED_PREBUILTS
     assert module.TOOLBOX_RUNTIME_PREBUILT_ALIASES == EXPECTED_RUNTIME_PREBUILT_ALIASES
 
 
@@ -379,19 +404,38 @@ def test_read_only_validation_rejects_locking_clause_and_mixed_case_select() -> 
         module._template_sql({"sql": "SELECT id FROM customers WHERE id > 0 FOR SHARE"})
 
 
-def test_row_cap_uses_outer_query_and_dialect_specific_syntax() -> None:
+@offered("postgres")
+def test_row_cap_uses_the_outer_query() -> None:
     module = _runtime_module()
 
     assert module._limited_sql(
         "postgres", "SELECT * FROM (SELECT id FROM events LIMIT 1000) AS scoped", 100
     ).endswith("AS scoped LIMIT 100")
+
+
+@offered("mysql")
+def test_row_cap_on_mysql_drops_hash_comments_and_refuses_offsets() -> None:
+    module = _runtime_module()
+
     assert module._limited_sql("mysql", "SELECT id FROM events # keep", 100) == (
         "SELECT id FROM events LIMIT 100"
     )
     with pytest.raises(ValueError, match="offset"):
         module._limited_sql("mysql", "SELECT id FROM events LIMIT 1, 1000000", 100)
+
+
+@offered("clickhouse")
+def test_row_cap_refuses_clickhouse_limit_by() -> None:
+    module = _runtime_module()
+
     with pytest.raises(ValueError, match="not a global"):
         module._limited_sql("clickhouse", "SELECT id FROM events LIMIT 10 BY customer_id", 100)
+
+
+@offered("mssql")
+def test_row_cap_uses_top_on_sql_server() -> None:
+    module = _runtime_module()
+
     assert module._limited_sql("mssql", "SELECT id FROM events WHERE id > 0", 100) == (
         "SELECT TOP (100) id FROM events WHERE id > 0"
     )
@@ -442,6 +486,7 @@ def test_row_cap_ignores_limit_inside_literals_and_trailing_comments(monkeypatch
     assert calls[0]["sql"] == "SELECT 'limit' AS label FROM events WHERE id > 0 LIMIT 100"
 
 
+@offered("postgres")
 def test_toolbox_dataset_connector_smoke_check() -> None:
     completed = subprocess.run(  # nosemgrep: fixed Python executable and extension smoke script path. # nosec B603
         [sys.executable, str(EXTENSION_ROOT / "scripts" / "smoke_check.py")],
@@ -633,6 +678,7 @@ def test_toolbox_dataset_connector_bundle_paths_stay_self_contained() -> None:
     assert EXTENSION_ROOT.parents[1] == ROOT
 
 
+@offered("postgres")
 def test_toolbox_dataset_connector_reads_secret_values_from_refs_shape() -> None:
     module_path = EXTENSION_ROOT / "main.py"
     spec = importlib.util.spec_from_file_location("toolbox_dataset_connector_main", module_path)
@@ -650,6 +696,7 @@ def test_toolbox_dataset_connector_reads_secret_values_from_refs_shape() -> None
     assert env["POSTGRES_PASSWORD"] == "super-secret"
 
 
+@offered("sqlite")
 def test_sqlite_database_config_is_forwarded_to_the_packaged_runtime() -> None:
     module = _load_main_module()
 
@@ -663,14 +710,14 @@ def test_sqlite_database_config_is_forwarded_to_the_packaged_runtime() -> None:
 
 @pytest.mark.parametrize(
     ("prebuilt", "env_prefix"),
-    [
+    by_prebuilt(
         ("alloydb-omni", "ALLOYDB_OMNI"),
         ("mssql", "MSSQL"),
         ("mysql", "MYSQL"),
         ("oceanbase", "OCEANBASE"),
         ("postgres", "POSTGRES"),
         ("singlestore", "SINGLESTORE"),
-    ],
+    ),
 )
 def test_selectable_network_source_maps_user_facing_connection_fields(
     prebuilt: str, env_prefix: str
@@ -695,6 +742,7 @@ def test_selectable_network_source_maps_user_facing_connection_fields(
     assert env[f"{env_prefix}_PASSWORD"] == "secret"
 
 
+@offered("mariadb")
 def test_toolbox_mariadb_uses_mysql_prebuilt_and_connection_environment() -> None:
     module = _load_main_module()
     config = {
@@ -720,7 +768,7 @@ def test_toolbox_mariadb_uses_mysql_prebuilt_and_connection_environment() -> Non
 
 @pytest.mark.parametrize(
     ("prebuilt", "expected"),
-    [
+    by_prebuilt(
         (
             "alloydb-postgres",
             {
@@ -743,7 +791,7 @@ def test_toolbox_mariadb_uses_mysql_prebuilt_and_connection_environment() -> Non
             "spanner",
             {"SPANNER_PROJECT": "cloud-project", "SPANNER_DIALECT": "googlesql"},
         ),
-    ],
+    ),
 )
 def test_managed_source_maps_source_specific_connection_fields(
     prebuilt: str, expected: dict[str, str]
