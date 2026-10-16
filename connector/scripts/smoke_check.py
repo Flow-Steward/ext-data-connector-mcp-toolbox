@@ -8,6 +8,7 @@ import json
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FAKE_TOOLBOX = ROOT / "fixtures" / "fake_toolbox.py"
@@ -23,7 +24,7 @@ def load_module(path: Path, name: str) -> ModuleType:
 
 
 def main() -> int:
-    module = load_module(ROOT / "main.py", "toolbox_dataset_connector_main")
+    module: Any = load_module(ROOT / "main.py", "toolbox_dataset_connector_main")
     module._TOOLBOX_COMMAND_OVERRIDE = [sys.executable, str(FAKE_TOOLBOX)]
     connection = {
         "prebuilt": "postgres",
@@ -33,13 +34,20 @@ def main() -> int:
         "user": "toolbox_test",
     }
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": {
+            "group_id": None,
+            "for_each_id": None,
+            "step_id": "smoke_check",
+            "step_execution_id": "4d3c2b1a-0f9e-4d8c-b7a6-5f4e3d2c0003",
+        },
         "mode": "action",
         "action": {
             "action_id": "introspect_schema",
             "input": {"connection_config": connection},
         },
     }
-    payload = module.handle_action(request)
+    payload = module.handle_request(request)
     if payload.get("ok") is not True:
         raise AssertionError(payload)
     snapshot = payload["result"]["schema_snapshot"]

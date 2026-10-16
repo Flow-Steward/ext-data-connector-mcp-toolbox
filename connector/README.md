@@ -11,6 +11,18 @@ This bundle is the reference for the first-release dataset connector pattern:
 - The extension owns connector-specific runtime behavior, source catalog projection, query validation rules, and response normalization.
 - The extension contract is self-describing from `extension.yaml`, schemas, manifests, and this README. A new author should not need to read Flow Steward Core internals to understand how to build the next connector.
 
+## Requirements
+
+This release speaks the host contract `extension_host_v2` with its final
+execution scope (`group_id`, `for_each_id`, `step_id`, `step_execution_id`)
+and is built on `flowsteward-extension-sdk` 0.4.0. A request with another
+contract, a missing scope key, both a Group and a For each as its owner, or a
+step without its execution is refused (`invalid_host_envelope`) before Toolbox
+is started or a database is reached. Install it on a Flow Steward Core that
+speaks this contract; an older Core does not run it.
+
+Logo: `icon.png` (the Flow Steward wave mark).
+
 ## Core vs Extension Boundary
 
 Keep this split when building the next connector:

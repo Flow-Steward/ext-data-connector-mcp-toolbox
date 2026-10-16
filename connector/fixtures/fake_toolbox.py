@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import time
+from typing import Any
 
 
 def _list_tables() -> list[dict]:
@@ -79,6 +80,7 @@ def main() -> int:
         method = request.get("method")
         if request_id is None:
             continue
+        result: dict[str, Any]
         if method == "initialize":
             result = {
                 "protocolVersion": "2025-06-18",
@@ -92,7 +94,7 @@ def main() -> int:
                         {
                             "type": "text",
                             "text": (
-                                'error processing request: unable to execute query: '
+                                "error processing request: unable to execute query: "
                                 'ERROR: syntax error at or near "FROM" (SQLSTATE 42601); '
                                 f"PASSWORD={os.getenv('POSTGRES_PASSWORD', '')}"
                             ),

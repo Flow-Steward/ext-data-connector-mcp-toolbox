@@ -2,7 +2,7 @@ manifest_version: 2
 lifecycle: {data_schema_version: 1, data_migrations: []}
 extension_id: flowsteward.toolbox-dataset-connector
 kind: tool_provider
-version: 1.0.0
+version: 1.1.0
 release_stage: active
 display_name: Toolbox Dataset Connector
 description: Dataset connector backed by a packaged Google MCP Toolbox for Databases runtime.
@@ -57,6 +57,7 @@ ui_manifest: ui/ui_manifest.yaml
 query_manifest: ui/queries/queries.yaml
 action_manifest: ui/actions/actions.yaml
 runtime:
+  contract_version: extension_host_v2
   extension_contract_v2:
     dataset_connectors:
       - connector_id: toolbox_database

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0
+
+- Speaks the final extension host contract `extension_host_v2`
+  (`runtime.contract_version`) and is built on `flowsteward-extension-sdk` 0.4.0.
+  A request of another contract, with a missing execution-scope key
+  (`group_id`, `for_each_id`, `step_id`, `step_execution_id`), with both a Group
+  and a For each as its owner, or with a step but no step execution, is refused
+  with `invalid_host_envelope` before Toolbox is started. An older Flow Steward
+  does not run this release.
+- Works the same for a step at the root, in a Group or in a For each.
+- Logo: `icon.png`, the Flow Steward wave mark.
+
 ## 1.0.0
 
 - Initial reference release for Flow Steward dataset connectors.

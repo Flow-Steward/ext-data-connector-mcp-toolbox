@@ -20,6 +20,14 @@ Each database family is its own extension, installed from
 This repository is also **the worked example of a Flow Steward data connector**:
 copy it to build a driver for another database.
 
+## Requirements
+
+Every variant speaks the host contract `extension_host_v2` with its final
+execution scope and is built on `flowsteward-extension-sdk` 0.4.0 (the wheel
+for tests is `connector/dev-wheels/`); an older Flow Steward Core does not run
+it. Every variant carries the logo `connector/icon.png` (the Flow Steward wave
+mark).
+
 ## How it is organised
 
 - `connector/` — the one shared implementation: the extension runtime

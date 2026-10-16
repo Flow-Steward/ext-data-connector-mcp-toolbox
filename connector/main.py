@@ -18,6 +18,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from flowsteward_extension_sdk import runtime_context_from_payload
+
 _MESSAGE_ONLY_READ_ONLY_SELECT_STATEMENTS_ARE_ALLOWED = (
     "Only read-only SELECT statements are allowed"
 )
@@ -61,20 +63,24 @@ def _variant() -> dict[str, Any]:
     variant = json.loads(path.read_text(encoding="utf-8"))
     unknown = set(variant.get("prebuilts") or ()) - set(TOOLBOX_SOURCE_CATALOG)
     if unknown:
-        raise RuntimeError(f"variant.json names prebuilts this connector does not know: {sorted(unknown)}")
+        raise RuntimeError(
+            f"variant.json names prebuilts this connector does not know: {sorted(unknown)}"
+        )
     return variant
 
 
 _VARIANT = _variant()
 TOOLBOX_DATASET_PREBUILTS = frozenset(_VARIANT.get("prebuilts") or TOOLBOX_SOURCE_CATALOG)
 EXTENSION_DISPLAY_NAME = str(_VARIANT.get("display_name") or "Toolbox Dataset Connector")
+# Toolbox environment variable -> connection field name. The "password" values
+# name a field; they are not secrets.
 TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
     "alloydb-omni": {
         "ALLOYDB_OMNI_HOST": "host",
         "ALLOYDB_OMNI_PORT": "port",
         "ALLOYDB_OMNI_DATABASE": "database",
         "ALLOYDB_OMNI_USER": "user",
-        "ALLOYDB_OMNI_PASSWORD": "password",
+        "ALLOYDB_OMNI_PASSWORD": "password",  # nosec B105
         "ALLOYDB_OMNI_QUERY_PARAMS": "query_params",
     },
     "alloydb-postgres": {
@@ -84,14 +90,14 @@ TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
         "ALLOYDB_POSTGRES_INSTANCE": "instance",
         "ALLOYDB_POSTGRES_DATABASE": "database",
         "ALLOYDB_POSTGRES_USER": "user",
-        "ALLOYDB_POSTGRES_PASSWORD": "password",
+        "ALLOYDB_POSTGRES_PASSWORD": "password",  # nosec B105
         "ALLOYDB_POSTGRES_IP_TYPE": "ip_type",
     },
     "clickhouse": {
         "CLICKHOUSE_HOST": "host",
         "CLICKHOUSE_PORT": "port",
         "CLICKHOUSE_USER": "user",
-        "CLICKHOUSE_PASSWORD": "password",
+        "CLICKHOUSE_PASSWORD": "password",  # nosec B105
         "CLICKHOUSE_DATABASE": "database",
         "CLICKHOUSE_PROTOCOL": "protocol",
     },
@@ -101,7 +107,7 @@ TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
         "CLOUD_SQL_MSSQL_INSTANCE": "instance",
         "CLOUD_SQL_MSSQL_DATABASE": "database",
         "CLOUD_SQL_MSSQL_USER": "user",
-        "CLOUD_SQL_MSSQL_PASSWORD": "password",
+        "CLOUD_SQL_MSSQL_PASSWORD": "password",  # nosec B105
         "CLOUD_SQL_MSSQL_IP_TYPE": "ip_type",
     },
     "cloud-sql-mysql": {
@@ -110,7 +116,7 @@ TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
         "CLOUD_SQL_MYSQL_INSTANCE": "instance",
         "CLOUD_SQL_MYSQL_DATABASE": "database",
         "CLOUD_SQL_MYSQL_USER": "user",
-        "CLOUD_SQL_MYSQL_PASSWORD": "password",
+        "CLOUD_SQL_MYSQL_PASSWORD": "password",  # nosec B105
         "CLOUD_SQL_MYSQL_IP_TYPE": "ip_type",
     },
     "cloud-sql-postgres": {
@@ -119,7 +125,7 @@ TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
         "CLOUD_SQL_POSTGRES_INSTANCE": "instance",
         "CLOUD_SQL_POSTGRES_DATABASE": "database",
         "CLOUD_SQL_POSTGRES_USER": "user",
-        "CLOUD_SQL_POSTGRES_PASSWORD": "password",
+        "CLOUD_SQL_POSTGRES_PASSWORD": "password",  # nosec B105
         "CLOUD_SQL_POSTGRES_IP_TYPE": "ip_type",
     },
     "mysql": {
@@ -127,7 +133,7 @@ TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
         "MYSQL_PORT": "port",
         "MYSQL_DATABASE": "database",
         "MYSQL_USER": "user",
-        "MYSQL_PASSWORD": "password",  # pragma: allowlist secret
+        "MYSQL_PASSWORD": "password",  # pragma: allowlist secret  # nosec B105
         "MYSQL_QUERY_PARAMS": "query_params",
     },
     "postgres": {
@@ -135,7 +141,7 @@ TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
         "POSTGRES_PORT": "port",
         "POSTGRES_DATABASE": "database",
         "POSTGRES_USER": "user",
-        "POSTGRES_PASSWORD": "password",  # pragma: allowlist secret
+        "POSTGRES_PASSWORD": "password",  # pragma: allowlist secret  # nosec B105
         "POSTGRES_QUERY_PARAMS": "query_params",
     },
     "mssql": {
@@ -143,26 +149,26 @@ TOOLBOX_ENV_FIELDS: dict[str, dict[str, str]] = {
         "MSSQL_PORT": "port",
         "MSSQL_DATABASE": "database",
         "MSSQL_USER": "user",
-        "MSSQL_PASSWORD": "password",
+        "MSSQL_PASSWORD": "password",  # nosec B105
     },
     "oceanbase": {
         "OCEANBASE_HOST": "host",
         "OCEANBASE_PORT": "port",
         "OCEANBASE_DATABASE": "database",
         "OCEANBASE_USER": "user",
-        "OCEANBASE_PASSWORD": "password",
+        "OCEANBASE_PASSWORD": "password",  # nosec B105
     },
     "singlestore": {
         "SINGLESTORE_HOST": "host",
         "SINGLESTORE_PORT": "port",
         "SINGLESTORE_DATABASE": "database",
         "SINGLESTORE_USER": "user",
-        "SINGLESTORE_PASSWORD": "password",
+        "SINGLESTORE_PASSWORD": "password",  # nosec B105
     },
     "snowflake": {
         "SNOWFLAKE_ACCOUNT": "account",
         "SNOWFLAKE_USER": "user",
-        "SNOWFLAKE_PASSWORD": "password",
+        "SNOWFLAKE_PASSWORD": "password",  # nosec B105
         "SNOWFLAKE_DATABASE": "database",
         "SNOWFLAKE_SCHEMA": "schema",
         "SNOWFLAKE_WAREHOUSE": "warehouse",
@@ -420,7 +426,7 @@ def _invoke_toolbox(
                 "params": {
                     "protocolVersion": "2025-06-18",
                     "capabilities": {},
-                    "clientInfo": {"name": EXTENSION_ID, "version": "1.0.0"},
+                    "clientInfo": {"name": EXTENSION_ID, "version": "1.1.0"},
                 },
             },
         )
@@ -517,7 +523,7 @@ def _read_mcp_response(
             if not events:
                 raise RuntimeError("Google MCP Toolbox request timed out")
             for key, _ in events:
-                chunk = os.read(key.fileobj.fileno(), 65536)
+                chunk = os.read(key.fd, 65536)
                 if not chunk:
                     selector.unregister(key.fileobj)
                     continue
@@ -716,7 +722,8 @@ def _param_schema(request: dict[str, Any]) -> dict[str, Any]:
 def _dataset_scope(request: dict[str, Any]) -> dict[str, set[str] | None]:
     dataset = _as_dict(_action_input(request).get("dataset"))
     scope = _as_dict(dataset.get("resource_scope_jsonb") or dataset.get("resource_scope"))
-    resources = scope.get("resources") if isinstance(scope.get("resources"), list) else []
+    raw_resources = scope.get("resources")
+    resources = raw_resources if isinstance(raw_resources, list) else []
     allowed: dict[str, set[str] | None] = {}
     short_name_map: dict[str, list[tuple[str, set[str] | None]]] = {}
     for resource in resources:
@@ -1375,8 +1382,9 @@ def _placeholder_names(sql: str) -> list[str]:
     return [name for _start, _end, name in _placeholder_occurrences(sql)]
 
 
-def _declared_parameter_types(schema: dict[str, Any]) -> dict[str, str | list[str]]:
-    properties = schema.get("properties") if isinstance(schema.get("properties"), dict) else {}
+def _declared_parameter_types(schema: dict[str, Any]) -> dict[str, Any]:
+    raw_properties = schema.get("properties")
+    properties = raw_properties if isinstance(raw_properties, dict) else {}
     return {
         str(name): declaration.get("type")
         for name, declaration in properties.items()
@@ -1665,6 +1673,21 @@ def handle_query(request: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def handle_request(request: dict[str, Any]) -> dict[str, Any]:
+    """Check the host envelope, then dispatch one query or action."""
+    # The host envelope is checked before Toolbox is started or a database is
+    # reached: another contract, a missing execution-scope key or two owners
+    # is refused here.
+    try:
+        runtime_context_from_payload(request)
+    except ValueError as exc:
+        response = _envelope(ok=False, errors=[_error("invalid_host_envelope", str(exc))])
+        response["definitely_no_external_effect"] = True
+        return response
+    mode = str(request.get("mode") or "").strip().lower()
+    return handle_action(request) if mode == "action" else handle_query(request)
+
+
 def main() -> int:
     raw = sys.stdin.read().strip()
     try:
@@ -1683,8 +1706,7 @@ def main() -> int:
         )
         print(json.dumps(response, sort_keys=True))
         return 2
-    mode = str(request.get("mode") or "").strip().lower()
-    response = handle_action(request) if mode == "action" else handle_query(request)
+    response = handle_request(request)
     print(json.dumps(response, sort_keys=True))
     return 0 if response.get("ok") else 2
 

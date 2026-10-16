@@ -12,6 +12,19 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
+# The final extension_host_v2 execution scope: all four keys, at most one owner.
+ROOT_STEP_SCOPE = {
+    "group_id": None,
+    "for_each_id": None,
+    "step_id": "read_orders",
+    "step_execution_id": "4d3c2b1a-0f9e-4d8c-b7a6-5f4e3d2c0001",
+}
+FOR_EACH_STEP_SCOPE = {
+    **ROOT_STEP_SCOPE,
+    "for_each_id": "each_store",
+    "step_execution_id": "4d3c2b1a-0f9e-4d8c-b7a6-5f4e3d2c0002",
+}
+
 pytestmark = pytest.mark.skipif(
     platform.system() != "Linux",
     reason="packaged toolbox binaries are Linux-only; run inside the test container",
@@ -80,6 +93,8 @@ def test_packaged_toolbox_introspects_and_queries_disposable_postgres() -> None:
     try:
         introspection = main.handle_action(
             {
+                "contract_version": "extension_host_v2",
+                "runtime_context": dict(FOR_EACH_STEP_SCOPE),
                 "mode": "action",
                 "action": {"action_id": "introspect_schema", "input": common_input},
             }
@@ -91,6 +106,8 @@ def test_packaged_toolbox_introspects_and_queries_disposable_postgres() -> None:
 
         execution = main.handle_action(
             {
+                "contract_version": "extension_host_v2",
+                "runtime_context": dict(FOR_EACH_STEP_SCOPE),
                 "mode": "action",
                 "action": {
                     "action_id": "execute_template",
@@ -127,6 +144,8 @@ def test_packaged_toolbox_introspects_and_queries_disposable_postgres() -> None:
 
         big_integer_execution = main.handle_action(
             {
+                "contract_version": "extension_host_v2",
+                "runtime_context": dict(FOR_EACH_STEP_SCOPE),
                 "mode": "action",
                 "action": {
                     "action_id": "execute_template",

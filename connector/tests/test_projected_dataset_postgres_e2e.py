@@ -13,6 +13,19 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
+# The final extension_host_v2 execution scope: all four keys, at most one owner.
+ROOT_STEP_SCOPE = {
+    "group_id": None,
+    "for_each_id": None,
+    "step_id": "read_orders",
+    "step_execution_id": "4d3c2b1a-0f9e-4d8c-b7a6-5f4e3d2c0001",
+}
+FOR_EACH_STEP_SCOPE = {
+    **ROOT_STEP_SCOPE,
+    "for_each_id": "each_store",
+    "step_execution_id": "4d3c2b1a-0f9e-4d8c-b7a6-5f4e3d2c0002",
+}
+
 BUNDLE_ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = BUNDLE_ROOT / "main.py"
 
@@ -74,6 +87,8 @@ def test_projected_dataset_payload_reaches_packaged_toolbox_postgres(
 ) -> None:
     connection_config, secret_refs = toolbox_postgres_connection
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "execute_template",

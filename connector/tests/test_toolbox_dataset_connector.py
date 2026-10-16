@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 import platform
+import struct
 import subprocess  # nosec B404
 import sys
 import time
@@ -13,6 +14,19 @@ from pathlib import Path
 import pytest
 import yaml
 
+# The final extension_host_v2 execution scope: all four keys, at most one owner.
+ROOT_STEP_SCOPE = {
+    "group_id": None,
+    "for_each_id": None,
+    "step_id": "read_orders",
+    "step_execution_id": "4d3c2b1a-0f9e-4d8c-b7a6-5f4e3d2c0001",
+}
+GROUP_STEP_SCOPE = {**ROOT_STEP_SCOPE, "group_id": "load_sources"}
+FOR_EACH_STEP_SCOPE = {
+    **ROOT_STEP_SCOPE,
+    "for_each_id": "each_store",
+    "step_execution_id": "4d3c2b1a-0f9e-4d8c-b7a6-5f4e3d2c0002",
+}
 ROOT = Path(__file__).resolve().parents[3]
 EXTENSION_ROOT = Path(__file__).resolve().parents[1]
 FAKE_TOOLBOX = EXTENSION_ROOT / "fixtures" / "fake_toolbox.py"
@@ -199,6 +213,8 @@ def test_execute_sql_sends_statement_and_values_separately(monkeypatch) -> None:
     value = "x' OR 1=1 --"
     result = module._execute_sql(
         {
+            "contract_version": "extension_host_v2",
+            "runtime_context": dict(FOR_EACH_STEP_SCOPE),
             "mode": "action",
             "action": {
                 "action_id": "execute_template",
@@ -246,6 +262,8 @@ def test_dynamic_identifier_parameter_is_rejected_before_toolbox(monkeypatch) ->
     monkeypatch.setattr(module, "_invoke_toolbox", invoke)
 
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "execute_template",
@@ -398,6 +416,8 @@ def test_row_cap_ignores_limit_inside_literals_and_trailing_comments(monkeypatch
     monkeypatch.setattr(module, "_invoke_toolbox", fake_invoke)
     module._execute_sql(
         {
+            "contract_version": "extension_host_v2",
+            "runtime_context": dict(FOR_EACH_STEP_SCOPE),
             "mode": "action",
             "action": {
                 "action_id": "execute_template",
@@ -523,6 +543,8 @@ def test_toolbox_runtime_supported_connectors_matches_manifest_catalog() -> None
 
 def test_toolbox_dataset_connector_uses_canonical_envelopes() -> None:
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "introspect_schema",
@@ -559,7 +581,14 @@ def test_toolbox_dataset_connector_uses_canonical_envelopes() -> None:
 def test_toolbox_dataset_connector_query_failures_are_structured() -> None:
     completed = subprocess.run(  # nosemgrep: fixed Python executable and extension runtime path. # nosec B603
         [sys.executable, str(TEST_RUNTIME)],
-        input=json.dumps({"mode": "query", "query": {"query_id": "missing_query"}}),
+        input=json.dumps(
+            {
+                "contract_version": "extension_host_v2",
+                "runtime_context": dict(ROOT_STEP_SCOPE),
+                "mode": "query",
+                "query": {"query_id": "missing_query"},
+            }
+        ),
         text=True,
         capture_output=True,
         check=False,
@@ -1340,6 +1369,8 @@ def test_toolbox_dataset_connector_ignores_configured_executable(monkeypatch) ->
 
 def test_toolbox_dataset_connector_executes_saved_template_read_only() -> None:
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "execute_template",
@@ -1383,6 +1414,8 @@ def test_toolbox_dataset_connector_executes_saved_template_read_only() -> None:
 
 def test_toolbox_dataset_connector_validate_query_exercises_runtime_path() -> None:
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "validate_query",
@@ -1419,6 +1452,8 @@ def test_toolbox_dataset_connector_validate_query_exercises_runtime_path() -> No
 
 def test_toolbox_dataset_connector_rejects_out_of_scope_query() -> None:
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "validate_query",
@@ -1454,6 +1489,8 @@ def test_toolbox_dataset_connector_rejects_out_of_scope_query() -> None:
 
 def test_toolbox_dataset_connector_rejects_out_of_scope_columns() -> None:
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "execute_template",
@@ -1492,6 +1529,8 @@ def test_toolbox_dataset_connector_rejects_denied_column_behind_allowed_select_t
     # behind an allowed leading token (in a select expression, alias, or WHERE
     # predicate) must be rejected and must never reach execute_sql.
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "execute_template",
@@ -1544,6 +1583,8 @@ def test_toolbox_dataset_connector_accepts_allowed_columns_in_predicate_expressi
     # Positive regression: a same-scope query that only references allowed
     # columns (including in WHERE / function expressions) still succeeds.
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "execute_template",
@@ -1588,6 +1629,8 @@ def test_toolbox_dataset_connector_accepts_allowed_columns_in_predicate_expressi
 
 def test_toolbox_dataset_connector_accepts_schema_qualified_scope_when_unambiguous() -> None:
     request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
         "mode": "action",
         "action": {
             "action_id": "validate_query",
@@ -1670,3 +1713,109 @@ def test_an_absent_limit_falls_back_to_the_default() -> None:
         module._limit({"action": {"input": {}}}, key="max_runtime_rows", default=100, maximum=None)
         == 100
     )
+
+
+@pytest.mark.parametrize("scope", [ROOT_STEP_SCOPE, GROUP_STEP_SCOPE, FOR_EACH_STEP_SCOPE])
+def test_every_final_scope_owner_introspects_through_the_entrypoint(scope) -> None:
+    request = {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(scope),
+        "mode": "action",
+        "action": {
+            "action_id": "introspect_schema",
+            "input": {"connection_config": toolbox_postgres_config()},
+        },
+    }
+    completed = subprocess.run(  # nosemgrep: fixed Python executable and extension runtime path. # nosec B603
+        [sys.executable, str(TEST_RUNTIME)],
+        input=json.dumps(request),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=toolbox_env(),
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    payload = json.loads(completed.stdout)
+    assert payload["ok"] is True
+    assert "orders" in {row["resource_id"] for row in payload["result"]["resources"]}
+
+
+@pytest.mark.parametrize(
+    ("contract_version", "scope", "reason"),
+    [
+        ("extension_host_v1", FOR_EACH_STEP_SCOPE, "Unsupported host contract"),
+        ("", FOR_EACH_STEP_SCOPE, "Unsupported host contract"),
+        (
+            "extension_host_v2",
+            {k: v for k, v in FOR_EACH_STEP_SCOPE.items() if k != "for_each_id"},
+            "misses execution scope",
+        ),
+        (
+            "extension_host_v2",
+            {**FOR_EACH_STEP_SCOPE, "group_id": "load_sources"},
+            "both a Group and a For each",
+        ),
+        (
+            "extension_host_v2",
+            {**ROOT_STEP_SCOPE, "step_execution_id": None},
+            "without its logical execution",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "operation",
+    [
+        {"mode": "action", "action": {"action_id": "test_connection", "input": {}}},
+        {"mode": "action", "action": {"action_id": "introspect_schema", "input": {}}},
+        {"mode": "query", "query": {"query_id": "runtime_health"}},
+    ],
+)
+def test_foreign_or_incomplete_envelope_is_refused_before_toolbox_starts(
+    monkeypatch, operation, contract_version, scope, reason
+) -> None:
+    module = _runtime_module()
+
+    def no_toolbox(*_args, **_kwargs):
+        raise AssertionError("a refused envelope must not start Toolbox or reach a database")
+
+    monkeypatch.setattr(module, "_invoke_toolbox", no_toolbox)
+    monkeypatch.setattr(module.subprocess, "Popen", no_toolbox)
+    request = {"contract_version": contract_version, "runtime_context": dict(scope), **operation}
+    if operation["mode"] == "action":
+        request["action"]["input"] = {"connection_config": toolbox_postgres_config()}
+
+    response = module.handle_request(request)
+
+    assert response["ok"] is False
+    assert response["error_code"] == "invalid_host_envelope"
+    assert reason in response["error"]
+    assert response["definitely_no_external_effect"] is True
+    assert response["errors"][0]["code"] == "invalid_host_envelope"
+
+
+def test_the_entrypoint_refuses_a_request_without_the_host_contract() -> None:
+    completed = subprocess.run(  # nosemgrep: fixed Python executable and extension runtime path. # nosec B603
+        [sys.executable, str(TEST_RUNTIME)],
+        input=json.dumps({"mode": "query", "query": {"query_id": "runtime_health"}}),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=toolbox_env(),
+    )
+
+    assert completed.returncode == 2
+    payload = json.loads(completed.stdout)
+    assert payload["error_code"] == "invalid_host_envelope"
+    assert payload["definitely_no_external_effect"] is True
+
+
+def test_logo_is_a_square_png_within_the_host_limits() -> None:
+    # Core requires icon.png at the bundle root: PNG, square, 32-512 px, <= 100 KB.
+    data = (EXTENSION_ROOT / "icon.png").read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    assert data[12:16] == b"IHDR"
+    width, height = struct.unpack(">II", data[16:24])
+    assert width == height
+    assert 32 <= width <= 512
+    assert len(data) <= 100 * 1024

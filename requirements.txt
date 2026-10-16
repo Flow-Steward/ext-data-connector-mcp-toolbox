@@ -1,3 +1,5 @@
 PyYAML==6.0.3
 pytest==8.3.5
 psycopg[binary]==3.2.13
+# The host provides the SDK at runtime; tests use the committed wheel.
+./connector/dev-wheels/flowsteward_extension_sdk-0.4.0-py3-none-any.whl
