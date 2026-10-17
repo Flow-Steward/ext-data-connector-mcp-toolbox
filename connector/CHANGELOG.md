@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- The logo (`icon.png`) now has a transparent background; in 1.1.0 the Flow Steward wave sat on a black box on dark themes.
+
 ## 1.1.0
 
 - Speaks the final extension host contract `extension_host_v2`
