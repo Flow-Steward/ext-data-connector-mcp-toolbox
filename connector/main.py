@@ -426,7 +426,7 @@ def _invoke_toolbox(
                 "params": {
                     "protocolVersion": "2025-06-18",
                     "capabilities": {},
-                    "clientInfo": {"name": EXTENSION_ID, "version": "1.1.1"},
+                    "clientInfo": {"name": EXTENSION_ID, "version": "1.1.2"},
                 },
             },
         )
@@ -1078,7 +1078,13 @@ def _template_sql(definition: dict[str, Any]) -> str:
     for index, (kind, value) in enumerate(tokens[:-1]):
         if kind != "identifier" or tokens[index + 1] != ("punctuation", "("):
             continue
-        if value.lower() not in _READ_ONLY_FUNCTIONS:
+        lowered = value.lower()
+        # A keyword before "(" is syntax, not a call: JOIN ... USING (id), ON (a = b),
+        # EXISTS (subquery), IN (...), JOIN (subquery). Only a name that calls something
+        # must be a known read-only function.
+        if lowered in _SQL_NONCOLUMN_TOKENS:
+            continue
+        if lowered not in _READ_ONLY_FUNCTIONS:
             raise ValueError(_MESSAGE_ONLY_READ_ONLY_SELECT_STATEMENTS_ARE_ALLOWED)
     if "where" not in words and "limit" not in words:
         raise ValueError("Query must include a WHERE clause or LIMIT")

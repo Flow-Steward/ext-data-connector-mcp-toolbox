@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2
+
+- A saved query may use SQL keywords before a parenthesis: `JOIN … USING (id)`,
+  `ON (…)`, `EXISTS (subquery)` and `IN (…)`, including a plain `IN ('open', 'paid')`
+  list. The read-only check took each of them for a call to an unknown function and
+  refused the query. A name that does call something must still be a known
+  read-only function, so `nextval(…)`, `pg_sleep(…)` or `dblink_exec(…)` inside
+  those parentheses are refused as before.
+
 ## 1.1.1
 
 - The logo (`icon.png`) now has a transparent background; in 1.1.0 the Flow Steward wave sat on a black box on dark themes.

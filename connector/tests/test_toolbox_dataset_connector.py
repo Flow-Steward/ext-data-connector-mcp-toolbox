@@ -396,6 +396,39 @@ def test_read_only_validation_rejects_side_effect_function() -> None:
         module._template_sql({"sql": "SELECT nextval('audit_seq') FROM customers WHERE id > 0"})
 
 
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT o.id FROM orders o JOIN customers c USING (id) LIMIT 5",
+        "SELECT o.id FROM orders o JOIN customers c ON (o.customer_id = c.id) LIMIT 5",
+        "SELECT o.id FROM orders o LEFT JOIN customers c ON (o.customer_id = c.id AND c.active) LIMIT 5",
+        "SELECT id FROM orders WHERE EXISTS (SELECT 1 FROM customers c WHERE c.id = orders.customer_id)",
+        "SELECT id FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE active)",
+        "SELECT id FROM orders WHERE status IN ('open', 'paid') LIMIT 5",
+    ],
+)
+def test_read_only_validation_accepts_sql_keywords_before_a_parenthesis(sql: str) -> None:
+    # USING (...), ON (...), EXISTS (...) and IN (...) are syntax, not function calls.
+    module = _runtime_module()
+
+    assert module._template_sql({"sql": sql})
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT o.id FROM orders o JOIN customers c USING (id) WHERE nextval('audit_seq') > 0",
+        "SELECT id FROM orders WHERE EXISTS (SELECT pg_sleep(5)) LIMIT 5",
+        "SELECT id FROM orders o JOIN customers c ON (dblink_exec('x') = 'OK') LIMIT 5",
+    ],
+)
+def test_read_only_validation_still_checks_calls_inside_keyword_parentheses(sql: str) -> None:
+    module = _runtime_module()
+
+    with pytest.raises(ValueError, match="read-only SELECT"):
+        module._template_sql({"sql": sql})
+
+
 def test_read_only_validation_rejects_locking_clause_and_mixed_case_select() -> None:
     module = _runtime_module()
 
