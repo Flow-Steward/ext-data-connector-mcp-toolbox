@@ -15,6 +15,7 @@ import subprocess  # nosec B404
 import sys
 import time
 import uuid
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -426,7 +427,7 @@ def _invoke_toolbox(
                 "params": {
                     "protocolVersion": "2025-06-18",
                     "capabilities": {},
-                    "clientInfo": {"name": EXTENSION_ID, "version": "1.1.2"},
+                    "clientInfo": {"name": EXTENSION_ID, "version": "1.1.3"},
                 },
             },
         )
@@ -474,6 +475,7 @@ def _invoke_toolbox(
     if structured is not None:
         return structured
     parsed_content: list[Any] = []
+    parsed_any_content = False
     parse_error: ValueError | None = None
     for content in _as_list(result.get("content")):
         if isinstance(content, dict) and str(content.get("type") or "") == "text":
@@ -482,6 +484,7 @@ def _invoke_toolbox(
             except ValueError as exc:
                 parse_error = exc
                 continue
+            parsed_any_content = True
             if isinstance(parsed, list):
                 parsed_content.extend(parsed)
             else:
@@ -490,6 +493,8 @@ def _invoke_toolbox(
         return parsed_content[0] if len(parsed_content) == 1 else parsed_content
     if parse_error is not None:
         raise parse_error
+    if parsed_any_content or result.get("content") == []:
+        return []
     return result
 
 
@@ -1577,10 +1582,18 @@ def _execute_sql(request: dict[str, Any], *, preview: bool) -> dict[str, Any]:
         for row in _toolbox_rows(rows_raw)
         if isinstance(row, dict)
     ]
+    declared_schema = _as_dict(
+        _as_dict(_action_input(request).get("query_template")).get("output_schema_jsonb")
+    )
+    output_schema = (
+        deepcopy(declared_schema)
+        if not rows and declared_schema
+        else _output_schema_from_rows(rows)
+    )
     return {
         "rows": rows[:limit],
         "row_count": min(len(rows), limit),
-        "output_schema": _output_schema_from_rows(rows),
+        "output_schema": output_schema,
         "truncated": len(rows) > limit,
     }
 

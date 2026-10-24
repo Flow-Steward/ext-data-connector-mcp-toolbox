@@ -139,7 +139,29 @@ def main() -> int:
                     flush=True,
                 )
                 continue
-            if mode == "multiple-text-content":
+            if mode == "empty-content":
+                result = {"content": []}
+            elif mode == "empty-content-success":
+                result = {"content": [], "isError": False}
+            elif mode == "empty-content-error":
+                result = {"content": [], "isError": True}
+            elif mode == "empty-json-list":
+                result = {"content": [{"type": "text", "text": "[]"}], "isError": False}
+            elif mode == "empty-structured":
+                result = {"structuredContent": [], "content": [], "isError": False}
+            elif mode == "singleton-content-column":
+                result = {"structuredContent": {"content": []}, "isError": False}
+            elif mode in {"qa-orders", "qa-orders-text"}:
+                rows = [
+                    {"id": 1, "customer": "Ada", "amount": 12.5, "status": "pending"},
+                    {"id": 3, "customer": "Linus", "amount": 7.25, "status": "pending"},
+                ]
+                result = (
+                    {"content": [{"type": "text", "text": json.dumps(rows)}], "isError": False}
+                    if mode == "qa-orders-text"
+                    else {"structuredContent": rows, "isError": False}
+                )
+            elif mode == "multiple-text-content":
                 result = {
                     "content": [{"type": "text", "text": json.dumps(item)} for item in content],
                     "isError": False,

@@ -142,6 +142,54 @@ def test_packaged_toolbox_introspects_and_queries_disposable_postgres() -> None:
         assert execution["ok"] is True
         assert execution["result"]["rows"] == [{"order_id": 1001, "status": "open"}]
 
+        declared_schema = {
+            "type": "object",
+            "properties": {"order_id": {"type": "integer"}, "status": {"type": "string"}},
+        }
+        empty_execution = main.handle_action(
+            {
+                "contract_version": "extension_host_v2",
+                "runtime_context": dict(FOR_EACH_STEP_SCOPE),
+                "mode": "action",
+                "action": {
+                    "action_id": "execute_template",
+                    "input": {
+                        **common_input,
+                        "dataset": {
+                            "resource_scope_jsonb": {
+                                "version": 1,
+                                "resources": [{"resource_id": table_name, "columns": None}],
+                            }
+                        },
+                        "query_template": {
+                            "query_definition_jsonb": {
+                                "sql": (
+                                    f"SELECT order_id, status FROM {table_name} "
+                                    "WHERE status = :status"
+                                )
+                            },
+                            "param_schema_jsonb": {
+                                "type": "object",
+                                "properties": {"status": {"type": "string"}},
+                                "required": ["status"],
+                            },
+                            "output_schema_jsonb": declared_schema,
+                        },
+                        "params": {"status": "missing-status"},
+                        "limits": {"max_runtime_rows": 5},
+                    },
+                },
+            }
+        )
+
+        assert empty_execution["ok"] is True
+        assert empty_execution["result"] == {
+            "rows": [],
+            "row_count": 0,
+            "output_schema": declared_schema,
+            "truncated": False,
+        }
+
         big_integer_execution = main.handle_action(
             {
                 "contract_version": "extension_host_v2",

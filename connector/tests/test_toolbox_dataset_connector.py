@@ -9,6 +9,7 @@ import struct
 import subprocess  # nosec B404
 import sys
 import time
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -1123,6 +1124,160 @@ def test_toolbox_stdio_returns_structured_content(monkeypatch) -> None:
     )
 
     assert result == [{"order_id": 1001, "status": "open"}]
+
+
+def _qa_orders_request() -> dict:
+    return {
+        "contract_version": "extension_host_v2",
+        "runtime_context": dict(FOR_EACH_STEP_SCOPE),
+        "mode": "action",
+        "action": {
+            "action_id": "execute_template",
+            "input": {
+                "connection_config": toolbox_postgres_config(),
+                "dataset": {
+                    "resource_scope_jsonb": {
+                        "version": 1,
+                        "resources": [{"resource_id": "qa_orders", "columns": None}],
+                    }
+                },
+                "query_template": {
+                    "query_definition_jsonb": {
+                        "sql": (
+                            "SELECT id, customer, amount, status FROM qa_orders "
+                            "WHERE status = :status ORDER BY id LIMIT 10"
+                        )
+                    },
+                    "param_schema_jsonb": {
+                        "type": "object",
+                        "properties": {"status": {"type": "string"}},
+                        "required": ["status"],
+                    },
+                    # Exact declaration read from the original synthetic QA query.
+                    "output_schema_jsonb": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "integer"},
+                            "amount": {"type": "number"},
+                            "status": {"type": "string"},
+                            "customer": {"type": "string"},
+                        },
+                    },
+                },
+                "params": {"status": "missing-status"},
+                "limits": {"max_runtime_rows": 10},
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "mode", ["empty-content", "empty-content-success", "empty-json-list", "empty-structured"]
+)
+def test_empty_toolbox_transport_retains_declared_query_schema(monkeypatch, mode: str) -> None:
+    module = _load_main_module()
+    monkeypatch.setattr(
+        module, "_TOOLBOX_COMMAND_OVERRIDE", [sys.executable, str(FAKE_TOOLBOX), f"--mode={mode}"]
+    )
+    request = _qa_orders_request()
+    original = deepcopy(request)
+
+    payload = module.handle_action(request)
+
+    assert payload["ok"] is True
+    assert payload["result"] == {
+        "rows": [],
+        "row_count": 0,
+        "truncated": False,
+        "output_schema": original["action"]["input"]["query_template"]["output_schema_jsonb"],
+    }
+    assert request == original
+    payload["result"]["output_schema"]["properties"]["id"]["type"] = "string"
+    assert request == original
+
+
+def test_empty_toolbox_without_declared_schema_uses_empty_schema(monkeypatch) -> None:
+    module = _load_main_module()
+    monkeypatch.setattr(
+        module,
+        "_TOOLBOX_COMMAND_OVERRIDE",
+        [sys.executable, str(FAKE_TOOLBOX), "--mode=empty-structured"],
+    )
+    request = _qa_orders_request()
+    del request["action"]["input"]["query_template"]["output_schema_jsonb"]
+
+    payload = module.handle_action(request)
+
+    assert payload["ok"] is True
+    assert payload["result"] == {
+        "rows": [],
+        "row_count": 0,
+        "truncated": False,
+        "output_schema": {"type": "object", "properties": {}, "additionalProperties": True},
+    }
+
+
+@pytest.mark.parametrize("mode", ["qa-orders", "qa-orders-text"])
+def test_nonempty_toolbox_transport_preserves_qa_orders(monkeypatch, mode: str) -> None:
+    module = _load_main_module()
+    monkeypatch.setattr(
+        module, "_TOOLBOX_COMMAND_OVERRIDE", [sys.executable, str(FAKE_TOOLBOX), f"--mode={mode}"]
+    )
+    request = _qa_orders_request()
+    request["action"]["input"]["params"]["status"] = "pending"
+
+    payload = module.handle_action(request)
+
+    assert payload["ok"] is True
+    assert payload["result"] == {
+        "rows": [
+            {"id": 1, "customer": "Ada", "amount": 12.5, "status": "pending"},
+            {"id": 3, "customer": "Linus", "amount": 7.25, "status": "pending"},
+        ],
+        "row_count": 2,
+        "truncated": False,
+        "output_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "customer": {"type": "string"},
+                "amount": {"type": "number"},
+                "status": {"type": "string"},
+            },
+            "additionalProperties": True,
+        },
+    }
+
+
+def test_singleton_sql_content_column_is_not_an_empty_envelope(monkeypatch) -> None:
+    module = _load_main_module()
+    monkeypatch.setattr(
+        module,
+        "_TOOLBOX_COMMAND_OVERRIDE",
+        [sys.executable, str(FAKE_TOOLBOX), "--mode=singleton-content-column"],
+    )
+
+    payload = module.handle_action(_qa_orders_request())
+
+    assert payload["ok"] is True
+    assert payload["result"]["rows"] == [{"content": []}]
+    assert payload["result"]["row_count"] == 1
+    assert payload["result"]["output_schema"]["properties"] == {"content": {"type": "string"}}
+
+
+def test_empty_error_content_remains_a_failed_action(monkeypatch) -> None:
+    module = _load_main_module()
+    monkeypatch.setattr(
+        module,
+        "_TOOLBOX_COMMAND_OVERRIDE",
+        [sys.executable, str(FAKE_TOOLBOX), "--mode=empty-content-error"],
+    )
+
+    payload = module.handle_action(_qa_orders_request())
+
+    assert payload["ok"] is False
+    assert payload["result"] == {}
+    assert payload["errors"][0]["code"] == "connector_runtime_failed"
 
 
 def test_toolbox_stdio_collects_all_text_content_blocks(monkeypatch) -> None:
