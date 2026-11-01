@@ -62,34 +62,6 @@ Other database variants do not expose the write action. No database triggers
 are provided. The shared adapter and database-specific parameter binding are
 tested independently; live database coverage is reported separately.
 
-## Redis and Valkey workflow storage
-
-`key_value/` is the standalone `flowsteward.redis-valkey` extension. It provides
-15 workflow actions for keys, TTL, conditional SET, counters, hashes and basic
-lists, with separate Redis and Valkey project connection types. Both use the
-packaged Redis-compatible Toolbox driver. It does not use the SQL dataset
-contract, change the SQL variants, or require Core changes.
-
-Build its minimal, pinned native binaries and package each architecture:
-
-```sh
-sh scripts/build_key_value_toolbox.sh
-python3 key_value/scripts/package_extension.py --runtime-target linux-amd64
-python3 key_value/scripts/package_extension.py --runtime-target linux-arm64
-```
-
-The archives are written to `dist/`. Each contains one architecture, its native
-executable declaration, provenance/checksums and license. The source excludes
-compiled binaries from git; build them before running the extension gate:
-
-```sh
-# Run from a Flow Steward checkout, using this repository's absolute path.
-./core/entrypoints/cli/scripts/lint.sh --checks extension-static,extension-tests --extension-root /absolute/path/to/this/repository/key_value
-```
-
-See [Redis/Valkey setup, operations and limits](key_value/README.md). The SQL
-family's renderer and release matrix remain separate from this new package.
-
 ## Requirements
 
 Every variant speaks the host contract `extension_host_v2` with its final

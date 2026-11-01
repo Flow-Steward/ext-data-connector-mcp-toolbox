@@ -1,5 +1,0 @@
-page_id: about
-title: About
-description: Redis and Valkey workflow storage.
-components:
-- ref: "../components/about.yaml"
