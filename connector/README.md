@@ -248,3 +248,5 @@ Oracle, and stripped with reproducible Go flags. Exact toolchain versions,
 source URL, patch path, and checksums live in `THIRD_PARTY.yml`.
 
 Read SQL containing a raw backslash or a dollar-quote delimiter (`$$` / `$tag$`), including inside identifiers, is refused before comment/quote parsing; put data values in bound parameters. Top-level LIMIT accepts one integer literal and an optional integer OFFSET; arithmetic limits and comma-offset forms are refused. SQL Server set queries are refused by the bounded TOP form.
+
+Write SQL also refuses raw dollar-quote delimiters before the single-DML scanner, including delimiters inside identifiers. Dollar text and backslashes remain supported in bound data values.

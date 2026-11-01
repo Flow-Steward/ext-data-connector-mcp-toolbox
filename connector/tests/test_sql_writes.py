@@ -275,8 +275,8 @@ def test_empty_toolbox_result_is_not_returned_as_protocol_metadata(mode):
         ),
         (
             "postgres",
-            "INSERT INTO notes(note) VALUES ($$a/*literal*/b$$)",
-            "INSERT INTO notes(note) VALUES ($$a/*literal*/b$$)",
+            "INSERT INTO notes(note) VALUES ('a/*literal*/b')",
+            "INSERT INTO notes(note) VALUES ('a/*literal*/b')",
         ),
         (
             "mssql",
