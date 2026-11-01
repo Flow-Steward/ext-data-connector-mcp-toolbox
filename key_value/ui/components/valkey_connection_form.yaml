@@ -1,0 +1,60 @@
+component_id: valkey_connection
+type: connection_form
+title: Valkey connection
+description: Use a least-privilege account restricted to the intended database and
+  namespace. Credentials stay in the project connection.
+data:
+  connection_kind: extension
+  connection_type: valkey
+  config_fields:
+  - host
+  - port
+  - database
+  - namespace
+  - tls
+  - request_timeout_seconds
+  secret_fields:
+  - username
+  - password
+defaults:
+  display_name: Valkey
+  port: 6379
+  database: 0
+  namespace: workflow
+  tls: true
+  request_timeout_seconds: 15
+fields:
+- path: display_name
+  label: Connection name
+  widget: text
+- path: environment
+  label: Environment
+  widget: text
+- path: host
+  label: Server hostname or IP address
+  widget: text
+  required: true
+  help: Hostname or IP only; no scheme, URL path, cluster or sentinel endpoint.
+- path: port
+  label: Port
+  widget: integer
+- path: database
+  label: Database number
+  widget: integer
+- path: namespace
+  label: Namespace
+  widget: text
+- path: tls
+  label: Use TLS with certificate verification
+  widget: boolean
+  help: Keep enabled for verified TLS. Plaintext requires a private endpoint and host
+    administrator opt-in.
+- path: request_timeout_seconds
+  label: Request timeout seconds
+  widget: integer
+- path: username
+  label: ACL username (optional)
+  widget: secret
+- path: password
+  label: Password (optional)
+  widget: secret

@@ -1,0 +1,583 @@
+actions:
+- action_id: get
+  workflow_visible: true
+  title: Get
+  description: Read a text value. Missing keys return null with found false; empty
+    strings remain found.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: set
+  workflow_visible: true
+  title: Set
+  description: Atomically set a text value with optional TTL and NX or XX condition.
+    An unmet condition returns applied false and value null.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: value
+    type: string
+    required: true
+  - name: ttl_seconds
+    type: integer
+    required: false
+  - name: condition
+    type: string
+    required: false
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: delete
+  workflow_visible: true
+  title: Delete
+  description: Delete a key. Returns the number of keys deleted.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: exists
+  workflow_visible: true
+  title: Exists
+  description: Return whether the key exists.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: ttl
+  workflow_visible: true
+  title: Ttl
+  description: 'Read remaining TTL in seconds: -1 means no expiry and -2 means missing.'
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: expire
+  workflow_visible: true
+  title: Expire
+  description: Set an existing key expiry in seconds.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: ttl_seconds
+    type: integer
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: increment
+  workflow_visible: true
+  title: Increment
+  description: Atomically add an IEEE-safe integer to a counter.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: amount
+    type: integer
+    required: false
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: hash_get
+  workflow_visible: true
+  title: Hash get
+  description: Read one text field from a hash.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: field
+    type: string
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: hash_set
+  workflow_visible: true
+  title: Hash set
+  description: Set up to 64 hash fields. Returns the number of newly added fields.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: fields
+    type: object
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: hash_delete
+  workflow_visible: true
+  title: Hash delete
+  description: Remove up to 64 hash fields. Returns the number removed.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: fields
+    type: array
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: hash_get_all
+  workflow_visible: true
+  title: Hash get all
+  description: Read a bounded hash. Results exceeding the output limit fail without
+    truncation.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: list_push
+  workflow_visible: true
+  title: List push
+  description: Push up to 64 text values to the selected list end. Returns list length.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: values
+    type: array
+    required: true
+  - name: direction
+    type: string
+    required: false
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: list_pop
+  workflow_visible: true
+  title: List pop
+  description: Pop one value from the selected list end without blocking.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: direction
+    type: string
+    required: false
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: list_range
+  workflow_visible: true
+  title: List range
+  description: Read up to 100 list values starting at a nonnegative index.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  - name: start
+    type: integer
+    required: false
+  - name: count
+    type: integer
+    required: false
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false
+- action_id: list_length
+  workflow_visible: true
+  title: List length
+  description: Read list length.
+  required_scopes:
+  - extension:invoke
+  handler:
+    mode: extension
+  parameters:
+  - name: connection_ref
+    type: string
+    required: true
+  - name: key
+    type: string
+    required: true
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+  mutates_platform: false

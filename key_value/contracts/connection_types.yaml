@@ -1,0 +1,127 @@
+connection_types:
+- connection_type_id: redis
+  display_name: Redis
+  description: Standalone server. TLS verification is mandatory when TLS is enabled.
+    Plaintext requires a private endpoint and host administrator opt-in.
+  config_schema:
+    type: object
+    additionalProperties: false
+    required:
+    - host
+    properties:
+      host:
+        type: string
+        title: Server hostname or IP address
+        minLength: 1
+        maxLength: 253
+      port:
+        type: integer
+        title: Port
+        minimum: 1
+        maximum: 65535
+        default: 6379
+      database:
+        type: integer
+        title: Database number
+        minimum: 0
+        maximum: 15
+        default: 0
+      namespace:
+        type: string
+        title: Namespace
+        minLength: 1
+        maxLength: 64
+        pattern: "^[A-Za-z0-9_-]{1,64}$"
+        default: workflow
+      tls:
+        type: boolean
+        title: Use TLS with certificate verification
+        default: true
+      request_timeout_seconds:
+        type: integer
+        title: Request timeout seconds
+        minimum: 1
+        maximum: 30
+        default: 15
+  secret_schema:
+    type: object
+    additionalProperties: false
+    properties:
+      username:
+        type: string
+        title: ACL username (optional)
+      password:
+        type: string
+        title: Password (optional)
+  capabilities:
+    test_connection: false
+    live_request: true
+    workflow_trigger: false
+    callback_ingress: false
+  safety_profile:
+    requires_https: false
+    requires_host_allowlist: true
+    stores_secret_values: false
+- connection_type_id: valkey
+  display_name: Valkey
+  description: Standalone server. TLS verification is mandatory when TLS is enabled.
+    Plaintext requires a private endpoint and host administrator opt-in.
+  config_schema:
+    type: object
+    additionalProperties: false
+    required:
+    - host
+    properties:
+      host:
+        type: string
+        title: Server hostname or IP address
+        minLength: 1
+        maxLength: 253
+      port:
+        type: integer
+        title: Port
+        minimum: 1
+        maximum: 65535
+        default: 6379
+      database:
+        type: integer
+        title: Database number
+        minimum: 0
+        maximum: 15
+        default: 0
+      namespace:
+        type: string
+        title: Namespace
+        minLength: 1
+        maxLength: 64
+        pattern: "^[A-Za-z0-9_-]{1,64}$"
+        default: workflow
+      tls:
+        type: boolean
+        title: Use TLS with certificate verification
+        default: true
+      request_timeout_seconds:
+        type: integer
+        title: Request timeout seconds
+        minimum: 1
+        maximum: 30
+        default: 15
+  secret_schema:
+    type: object
+    additionalProperties: false
+    properties:
+      username:
+        type: string
+        title: ACL username (optional)
+      password:
+        type: string
+        title: Password (optional)
+  capabilities:
+    test_connection: false
+    live_request: true
+    workflow_trigger: false
+    callback_ingress: false
+  safety_profile:
+    requires_https: false
+    requires_host_allowlist: true
+    stores_secret_values: false

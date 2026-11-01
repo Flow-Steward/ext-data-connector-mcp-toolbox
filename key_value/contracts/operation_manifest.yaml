@@ -1,0 +1,894 @@
+operations:
+- operation_id: get
+  display_name: Get
+  description: Read a text value. Missing keys return null with found false; empty
+    strings remain found.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: set
+  display_name: Set
+  description: Atomically set a text value with optional TTL and NX or XX condition.
+    An unmet condition returns applied false and value null.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: value
+    value_type: text
+    required: true
+    display_name: Value
+    schema:
+      type: string
+      maxLength: 65536
+  - name: ttl_seconds
+    value_type: integer
+    required: false
+    display_name: Ttl seconds
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+  - name: condition
+    value_type: text
+    required: false
+    display_name: Condition
+    schema:
+      type: string
+      enum:
+      - always
+      - nx
+      - xx
+      default: always
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: delete
+  display_name: Delete
+  description: Delete a key. Returns the number of keys deleted.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: exists
+  display_name: Exists
+  description: Return whether the key exists.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: ttl
+  display_name: Ttl
+  description: 'Read remaining TTL in seconds: -1 means no expiry and -2 means missing.'
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: expire
+  display_name: Expire
+  description: Set an existing key expiry in seconds.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: ttl_seconds
+    value_type: integer
+    required: true
+    display_name: Ttl seconds
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: increment
+  display_name: Increment
+  description: Atomically add an IEEE-safe integer to a counter.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: amount
+    value_type: integer
+    required: false
+    display_name: Amount
+    schema:
+      type: integer
+      minimum: -9007199254740991
+      maximum: 9007199254740991
+      default: 1
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: hash_get
+  display_name: Hash get
+  description: Read one text field from a hash.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: field
+    value_type: text
+    required: true
+    display_name: Field
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: hash_set
+  display_name: Hash set
+  description: Set up to 64 hash fields. Returns the number of newly added fields.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: fields
+    value_type: object
+    required: true
+    display_name: Fields
+    schema:
+      type: object
+      additionalProperties:
+        type: string
+        maxLength: 65536
+      not:
+        const: {}
+      description: 1–64 fields; nonempty field names at most 256 UTF-8 bytes. Runtime
+        enforces field count and byte bounds.
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: hash_delete
+  display_name: Hash delete
+  description: Remove up to 64 hash fields. Returns the number removed.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: fields
+    value_type: array
+    required: true
+    display_name: Fields
+    schema:
+      type: array
+      minItems: 1
+      maxItems: 64
+      items:
+        type: string
+        minLength: 1
+        maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: hash_get_all
+  display_name: Hash get all
+  description: Read a bounded hash. Results exceeding the output limit fail without
+    truncation.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: list_push
+  display_name: List push
+  description: Push up to 64 text values to the selected list end. Returns list length.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: values
+    value_type: array
+    required: true
+    display_name: Values
+    schema:
+      type: array
+      minItems: 1
+      maxItems: 64
+      items:
+        type: string
+        maxLength: 65536
+  - name: direction
+    value_type: text
+    required: false
+    display_name: Direction
+    schema:
+      type: string
+      enum:
+      - left
+      - right
+      default: right
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: list_pop
+  display_name: List pop
+  description: Pop one value from the selected list end without blocking.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: direction
+    value_type: text
+    required: false
+    display_name: Direction
+    schema:
+      type: string
+      enum:
+      - left
+      - right
+      default: left
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: list_range
+  display_name: List range
+  description: Read up to 100 list values starting at a nonnegative index.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  - name: start
+    value_type: integer
+    required: false
+    display_name: Start
+    schema:
+      type: integer
+      minimum: 0
+      maximum: 2147483647
+      default: 0
+  - name: count
+    value_type: integer
+    required: false
+    display_name: Count
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 100
+      default: 100
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write
+- operation_id: list_length
+  display_name: List length
+  description: Read list length.
+  operation_kind: action
+  workflow_visible: true
+  connection_type_ids:
+  - redis
+  - valkey
+  category: data
+  inputs:
+  - name: connection_ref
+    value_type: connection_ref
+    required: true
+    display_name: Connection ref
+  - name: key
+    value_type: text
+    required: true
+    display_name: Key
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 256
+  outputs:
+  - name: value
+    value_type: json
+  - name: found
+    value_type: boolean
+  - name: applied
+    value_type: boolean
+  - name: key
+    value_type: text
+  result_fields:
+  - result.value
+  - result.found
+  - result.applied
+  - result.key
+  error_codes:
+  - invalid_payload
+  - invalid_connection
+  - unknown_action
+  - effect_claim_required
+  - test_mode_suppressed
+  - authentication_failed
+  - provider_unavailable
+  - native_unavailable
+  - invalid_provider_response
+  - response_too_large
+  - network_blocked
+  - timeout
+  - wrong_type
+  - uncertain_write

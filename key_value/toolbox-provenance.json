@@ -1,0 +1,13 @@
+{
+  "tag": "v1.3.0",
+  "commit": "b0010060a939455d91e4f8ba62dc3e72b1892469",
+  "go_image": "golang:1.26.2-bookworm@sha256:47ce5636e9936b2c5cbf708925578ef386b4f8872aec74a67bd13a627d242b19",
+  "source_date_epoch": 1779400183,
+  "patch": "scripts/patches/0002-flowsteward-key-value-safety.patch",
+  "patch_sha256": "0e4836c4f60f8e53c78a2abbe2285e6e4eea7de579a7a1f412807403d220ff88",
+  "packages": ["github.com/googleapis/mcp-toolbox/internal/sources/redis", "github.com/googleapis/mcp-toolbox/internal/tools/redis"],
+  "binaries": {
+    "linux-amd64": {"sha256": "849191687d2500ffdbedfd1474cfebc7b870466e9ab52f7660132454b5a7d51e", "size": 31883390},
+    "linux-arm64": {"sha256": "cfc04eca0aa29d54ec8b99dc1e50e48a4093c2ed51d4a3bcf574e04a35910c76", "size": 29556862}
+  }
+}

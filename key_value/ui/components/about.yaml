@@ -1,0 +1,10 @@
+component_id: redis_valkey_about
+type: markdown
+title: Redis and Valkey
+content: Read and write namespaced workflow state, counters, hashes and bounded lists
+  through a standalone Redis or Valkey project connection. TLS verifies the server
+  certificate; plaintext requires a private endpoint and host administrator opt-in.
+  Writes require a durable host effect claim and are suppressed in test mode. No database
+  triggers, cluster routing or arbitrary commands. See README.md for TTL, limits and
+  uncertain write handling. The extension adds no usage billing; your server provider
+  may charge for infrastructure.

@@ -1,0 +1,6 @@
+page_id: connection
+title: Connections
+description: Choose the connection form matching your standalone server.
+components:
+- ref: "../components/redis_connection_form.yaml"
+- ref: "../components/valkey_connection_form.yaml"

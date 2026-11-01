@@ -1,0 +1,99 @@
+manifest_version: 2
+extension_id: flowsteward.redis-valkey
+kind: tool_provider
+version: 1.0.0
+release_stage: active
+display_name: Redis and Valkey
+description: Read and write project-scoped keys, hashes, counters and lists through
+  Google MCP Toolbox.
+lifecycle:
+  data_schema_version: 1
+  data_migrations: []
+vendor:
+  name: Flow Steward
+listing:
+  category: data
+  tags:
+  - redis
+  - valkey
+  - toolbox
+  summary: Workflow state, deduplication and bounded queues.
+features:
+- tool
+- action
+required_scopes:
+- extension:invoke
+egress:
+  connection_fields:
+  - redis.host
+  - valkey.host
+account_scope:
+  scope_type: project
+  description: Explicit project Redis or Valkey connections.
+entrypoint:
+  mode: subprocess
+  command:
+  - python3
+  - main.py
+  timeout_seconds: 40
+health:
+  command:
+  - python3
+  - health.py
+  timeout_seconds: 5
+ui_manifest: ui/ui_manifest.yaml
+action_manifest: ui/actions/actions.yaml
+python_requirements: []
+runtime:
+  contract_version: extension_host_v2
+  compatibility:
+    platform_min: 1.4.0
+  extension_contract_v2:
+    connection_types: contracts/connection_types.yaml
+    operation_manifest: contracts/operation_manifest.yaml
+    step_ui_manifest: contracts/step_ui_manifest.yaml
+external_effects:
+- operation_id: set
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: delete
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: expire
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: increment
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: hash_set
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: hash_delete
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: list_push
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: list_pop
+  effect_kind: database_write
+  channel: redis-valkey
+  idempotency: required
+  test_mode_behavior: suppress
+machine_auth:
+  service_account_key: svc_ext_redis_valkey
+  required_scopes:
+  - extension:invoke
