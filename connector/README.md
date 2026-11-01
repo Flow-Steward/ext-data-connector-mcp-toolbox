@@ -246,3 +246,5 @@ artifact. Both targets are therefore built from the same pinned source in
 Docker with the checked-in Flow Steward parameter-binding patch, excluding
 Oracle, and stripped with reproducible Go flags. Exact toolchain versions,
 source URL, patch path, and checksums live in `THIRD_PARTY.yml`.
+
+Read SQL containing a raw backslash is refused before comment/quote parsing; put such data in a bound parameter. Top-level LIMIT accepts one integer literal and an optional integer OFFSET; arithmetic limits and comma-offset forms are refused. SQL Server set queries are refused by the bounded TOP form.

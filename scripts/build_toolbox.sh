@@ -23,7 +23,8 @@ test -f "$ROOT/build/$VARIANT/toolbox-prebuilts.txt" \
 PREBUILTS=$(cat "$ROOT/build/$VARIANT/toolbox-prebuilts.txt")
 mkdir -p "$ROOT/build/$VARIANT"
 
-docker run --rm \
+docker run --rm --cpus=1 --memory=2g \
+  -v flow-steward-db-batch-go-cache:/go/pkg/mod -v flow-steward-db-batch-build-cache:/root/.cache/go-build \
   -e TOOLBOX_TAG="$TOOLBOX_TAG" -e TOOLBOX_COMMIT="$TOOLBOX_COMMIT" -e PATCH="$PATCH" \
   -e PREBUILTS="$PREBUILTS" -e VARIANT="$VARIANT" \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
@@ -34,6 +35,7 @@ docker run --rm \
     test "$(git -C /src rev-parse HEAD)" = "$TOOLBOX_COMMIT"
     cd /src
     git apply "/out/$PATCH"
+    if [ "$VARIANT" = sqlite ]; then git apply /out/scripts/patches/0002-flowsteward-sqlite-read-safety.patch; fi
 
     # Every resource type the prebuilt configurations name ...
     : > /tmp/types
@@ -62,6 +64,11 @@ docker run --rm \
     echo "[PASS] $VARIANT: $(wc -l < /tmp/types) types from $(wc -l < /tmp/packages) packages for: $PREBUILTS"
     cp /tmp/packages "/out/build/$VARIANT/packages.txt"
 
+    go test -p 1 ./internal/util/flowstewardbinding
+    if [ "$VARIANT" = sqlite ]; then
+      gofmt -w internal/sources/sqlite/*.go
+      go test -p 1 -run TestFlowStewardBoundRead ./internal/sources/sqlite
+    fi
     export SOURCE_DATE_EPOCH=1779400183
     for target in linux-amd64 linux-arm64; do
       arch=${target#linux-}

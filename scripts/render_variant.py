@@ -13,6 +13,7 @@ variant's prebuilt configurations — the ones its binary was compiled for.
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import shutil
 import sys
@@ -158,6 +159,16 @@ def render(name: str) -> Path:
         "scripts/build_toolbox.sh (github.com/Flow-Steward/ext-data-connector-mcp-toolbox)"
     )
     build.pop("excluded_native_sources", None)
+    if name == "sqlite":
+        additional_patch = ROOT / "scripts/patches/0002-flowsteward-sqlite-read-safety.patch"
+        build["additional_patches"] = [
+            {
+                "path": "scripts/patches/0002-flowsteward-sqlite-read-safety.patch",
+                "sha256": hashlib.sha256(additional_patch.read_bytes()).hexdigest(),
+                "purpose": "SQLite single-read defense plus native row and inline byte budgets.",
+            }
+        ]
+
     build["registered_prebuilts"] = toolbox_prebuilts
     provenance_path.write_text(
         yaml.safe_dump(provenance, sort_keys=False, allow_unicode=True), encoding="utf-8"

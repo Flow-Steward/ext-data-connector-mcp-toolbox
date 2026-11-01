@@ -869,6 +869,8 @@ _READ_ONLY_FUNCTIONS = frozenset(
 
 
 def _sql_tokens(sql: str) -> list[tuple[str, str]]:
+    if "\\" in sql:
+        raise ValueError("Read SQL cannot contain backslashes; use bound parameters")
     """Tokenize SQL code while deliberately excluding literal/comment contents."""
     tokens: list[tuple[str, str]] = []
     index = 0
@@ -943,6 +945,8 @@ def _sql_tokens(sql: str) -> list[tuple[str, str]]:
 
 
 def _strip_sql_comments(sql: str) -> str:
+    if "\\" in sql:
+        raise ValueError("Read SQL cannot contain backslashes; use bound parameters")
     """Remove comments without touching SQL literals, so an appended cap stays executable."""
     result: list[str] = []
     index = 0
@@ -1066,10 +1070,12 @@ def _bare_identifier(token: str) -> str:
     return last.strip('"`[] ')
 
 
-def _template_sql(definition: dict[str, Any]) -> str:
+def _template_sql(definition: dict[str, Any], *, require_predicate: bool = True) -> str:
     sql = str(definition.get("sql") or definition.get("sql_template") or "").strip()
     if not sql:
         raise ValueError("query_definition_jsonb.sql is required")
+    if "\\" in sql:
+        raise ValueError("Read SQL cannot contain backslashes; use bound parameters")
     normalized_sql = _strip_sql_comments(sql).strip()
     tokens = _sql_tokens(normalized_sql)
     if tokens and tokens[-1] == ("punctuation", ";"):
@@ -1093,7 +1099,7 @@ def _template_sql(definition: dict[str, Any]) -> str:
             continue
         if lowered not in _READ_ONLY_FUNCTIONS:
             raise ValueError(_MESSAGE_ONLY_READ_ONLY_SELECT_STATEMENTS_ARE_ALLOWED)
-    if "where" not in words and "limit" not in words:
+    if require_predicate and "where" not in words and "limit" not in words:
         raise ValueError("Query must include a WHERE clause or LIMIT")
     return normalized_sql
 
@@ -1274,6 +1280,8 @@ def _validate_query_scope(sql: str, allowed: dict[str, set[str] | None]) -> None
 
 def _limited_sql(prebuilt: str, sql: str, limit: int) -> str:
     """Apply a top-level, dialect-aware host row cap after lexical validation."""
+    if "\\" in sql:
+        raise ValueError("Read SQL cannot contain backslashes; use bound parameters")
     normalized = _strip_sql_comments(sql).strip()
     tokens = _sql_tokens(normalized)
     depth = 0
@@ -1291,13 +1299,25 @@ def _limited_sql(prebuilt: str, sql: str, limit: int) -> str:
         if depth == 0 and kind == "identifier" and value.lower() == "top":
             top_positions.append(index)
     normalized_prebuilt = _runtime_prebuilt({"prebuilt": prebuilt})
-    if normalized_prebuilt == "mssql":
+    if normalized_prebuilt in {"mssql", "cloud-sql-mssql"}:
         if limit_positions:
             raise ValueError("SQL Server queries must use TOP instead of LIMIT")
         if top_positions:
             raise ValueError(
                 "SQL Server query already declares TOP; host row cap cannot be verified"
             )
+        depth = 0
+        for kind, value in tokens:
+            if value == "(":
+                depth += 1
+            elif value == ")":
+                depth -= 1
+            elif (
+                depth == 0
+                and kind == "identifier"
+                and value.lower() in {"union", "intersect", "except"}
+            ):
+                raise ValueError("SQL Server set queries are not supported by the bounded TOP form")
         match = re.match(r"(?is)^(\s*select\s+)(distinct\s+)?", normalized)
         if not match:
             raise ValueError(_MESSAGE_ONLY_READ_ONLY_SELECT_STATEMENTS_ARE_ALLOWED)
@@ -1319,6 +1339,17 @@ def _limited_sql(prebuilt: str, sql: str, limit: int) -> str:
         raw_limit = tokens[position + 1][1]
         if not raw_limit.isdigit() or int(raw_limit) < 1:
             raise ValueError("Query LIMIT must be a positive integer literal")
+        tail = tokens[position + 2 :]
+        if tail and not (
+            len(tail) == 2
+            and tail[0][0] == "identifier"
+            and tail[0][1].lower() == "offset"
+            and tail[1][0] == "number"
+            and tail[1][1].isdigit()
+        ):
+            raise ValueError(
+                "Query LIMIT must be a single integer literal with optional integer OFFSET"
+            )
         if int(raw_limit) > limit:
             raise ValueError(f"Query LIMIT exceeds the configured maximum of {limit}")
         return normalized
@@ -1326,6 +1357,8 @@ def _limited_sql(prebuilt: str, sql: str, limit: int) -> str:
 
 
 def _placeholder_occurrences(sql: str) -> list[tuple[int, int, str]]:
+    if "\\" in sql:
+        raise ValueError("Read SQL cannot contain backslashes; use bound parameters")
     occurrences: list[tuple[int, int, str]] = []
     index = 0
     length = len(sql)

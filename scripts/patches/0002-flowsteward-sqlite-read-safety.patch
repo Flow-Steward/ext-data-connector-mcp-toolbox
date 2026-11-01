@@ -1,0 +1,217 @@
+--- a/internal/sources/sqlite/sqlite.go
++++ b/internal/sources/sqlite/sqlite.go
+@@ -94,8 +94,10 @@
+ }
+ 
+ func (s *Source) RunSQL(ctx context.Context, statement string, params []any) (any, error) {
++	bounded, err := boundedReadSQL(statement)
++	if err != nil { return nil, err }
+ 	// Execute the SQL query with parameters
+-	rows, err := s.SQLiteDB().QueryContext(ctx, statement, params...)
++	rows, err := s.SQLiteDB().QueryContext(ctx, bounded, params...)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("unable to execute query: %w", err)
+ 	}
+@@ -118,6 +120,7 @@
+ 
+ 	// Prepare the result slice
+ 	out := []any{}
++ inlineBytes := 0
+ 	for rows.Next() {
+ 		if err := rows.Scan(values...); err != nil {
+ 			return nil, fmt.Errorf("unable to scan row: %w", err)
+@@ -143,6 +146,9 @@
+ 			// Store the value in the map
+ 			row.Add(name, val)
+ 		}
++		encoded, err := json.Marshal(row)
++		if err != nil || inlineBytes+len(encoded)>480*1024 { return nil, fmt.Errorf("SQLite read exceeds inline byte budget") }
++		inlineBytes += len(encoded)
+ 		out = append(out, row)
+ 	}
+ 
+diff --git a/internal/sources/sqlite/flowsteward_read.go b/internal/sources/sqlite/flowsteward_read.go
+new file mode 100644
+index 0000000..fa89ba5
+--- /dev/null
++++ b/internal/sources/sqlite/flowsteward_read.go
+@@ -0,0 +1,107 @@
++// Copyright 2026 Flow Steward. Licensed under the Apache License, Version 2.0.
++package sqlite
++
++import (
++	"fmt"
++	"strings"
++	"unicode"
++)
++
++// boundedReadSQL applies SQLite lexical rules before the driver can see a read.
++// SQLite ordinary strings never use backslash escaping. No second statement,
++// mutating keyword or file/extension primitive can pass through this path.
++func boundedReadSQL(statement string) (string, error) {
++	if len(statement) == 0 || len(statement) > 65536 || strings.Contains(statement, "\\") {
++		return "", fmt.Errorf("invalid bounded SQLite read SQL")
++	}
++	first := ""
++	ended := false
++	terminator := -1
++	forbidden := map[string]bool{"insert": true, "update": true, "delete": true, "replace": true, "create": true, "alter": true, "drop": true, "attach": true, "detach": true, "pragma": true, "vacuum": true, "reindex": true, "analyze": true, "begin": true, "commit": true, "rollback": true, "savepoint": true, "release": true, "load_extension": true, "readfile": true, "writefile": true}
++	for index := 0; index < len(statement); {
++		char := statement[index]
++		if unicode.IsSpace(rune(char)) {
++			index++
++			continue
++		}
++		if strings.HasPrefix(statement[index:], "--") {
++			next := strings.IndexByte(statement[index:], '\n')
++			if next < 0 {
++				break
++			}
++			index += next + 1
++			continue
++		}
++		if strings.HasPrefix(statement[index:], "/*") {
++			next := strings.Index(statement[index+2:], "*/")
++			if next < 0 {
++				return "", fmt.Errorf("unterminated SQLite comment")
++			}
++			index += next + 4
++			continue
++		}
++		if ended {
++			return "", fmt.Errorf("exactly one SQLite read statement is required")
++		}
++		if char == ';' {
++			ended = true
++			terminator = index
++			index++
++			continue
++		}
++		if char == '\'' || char == '"' || char == '`' || char == '[' {
++			close := char
++			if char == '[' {
++				close = ']'
++			}
++			index++
++			closed := false
++			for index < len(statement) {
++				if statement[index] == close {
++					if close != ']' && index+1 < len(statement) && statement[index+1] == close {
++						index += 2
++						continue
++					}
++					index++
++					closed = true
++					break
++				}
++				index++
++			}
++			if !closed {
++				return "", fmt.Errorf("unterminated SQLite quoted value")
++			}
++			continue
++		}
++		if char == '_' || char >= 'A' && char <= 'Z' || char >= 'a' && char <= 'z' {
++			end := index + 1
++			for end < len(statement) {
++				next := statement[end]
++				if !(next == '_' || next >= 'A' && next <= 'Z' || next >= 'a' && next <= 'z' || next >= '0' && next <= '9') {
++					break
++				}
++				end++
++			}
++			word := strings.ToLower(statement[index:end])
++			if first == "" {
++				first = word
++			}
++			if forbidden[word] {
++				return "", fmt.Errorf("only SQLite read SQL is allowed")
++			}
++			index = end
++			continue
++		}
++		index++
++	}
++	if first != "select" && first != "with" {
++		return "", fmt.Errorf("only SQLite SELECT is allowed")
++	}
++	// Remove only a lexically verified trailing terminator; trailing comments are
++	// safe inside the derived query, with a newline protecting the closing syntax.
++	if terminator >= 0 {
++		statement = statement[:terminator] + statement[terminator+1:]
++	}
++	trimmed := strings.TrimSpace(statement)
++	return "SELECT * FROM (\n" + trimmed + "\n) AS flow_steward_bounded LIMIT 101", nil
++}
+diff --git a/internal/sources/sqlite/flowsteward_read_test.go b/internal/sources/sqlite/flowsteward_read_test.go
+new file mode 100644
+index 0000000..ff3422e
+--- /dev/null
++++ b/internal/sources/sqlite/flowsteward_read_test.go
+@@ -0,0 +1,66 @@
++// Copyright 2026 Flow Steward. Licensed under the Apache License, Version 2.0.
++package sqlite
++
++import (
++	"context"
++	"database/sql"
++	"path/filepath"
++	"testing"
++)
++
++func TestFlowStewardBoundReadProtectsSentinel(t *testing.T) {
++	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "sentinel.db"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	if _, err = db.Exec("CREATE TABLE products(sku TEXT PRIMARY KEY)"); err != nil {
++		t.Fatal(err)
++	}
++	if _, err = db.Exec("INSERT INTO products(sku) VALUES ('keep')"); err != nil {
++		t.Fatal(err)
++	}
++	source := Source{Db: db}
++	for _, payload := range []string{`SELECT '\'; DELETE FROM products; -- '`, `SELECT sku FROM products; DELETE FROM products`, `WITH x AS (SELECT 1) DELETE FROM products`, `SELECT 1; PRAGMA query_only=OFF; DELETE FROM products`} {
++		if _, err = source.RunSQL(context.Background(), payload, nil); err == nil {
++			t.Fatalf("unsafe read accepted: %q", payload)
++		}
++		var count int
++		if err = db.QueryRow("SELECT COUNT(*) FROM products").Scan(&count); err != nil || count != 1 {
++			t.Fatalf("sentinel changed: %d %v", count, err)
++		}
++	}
++	if _, err = source.RunSQL(context.Background(), `SELECT 'a''; DELETE FROM products --' AS note`, nil); err != nil {
++		t.Fatalf("safe quoted text refused: %v", err)
++	}
++}
++
++func TestFlowStewardBoundReadCapsActualNativeRowsAndBytes(t *testing.T) {
++	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "bounded.db"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	if _, err = db.Exec("CREATE TABLE products(sku INTEGER)"); err != nil {
++		t.Fatal(err)
++	}
++	for i := 0; i < 300; i++ {
++		if _, err = db.Exec("INSERT INTO products(sku) VALUES (?)", i); err != nil {
++			t.Fatal(err)
++		}
++	}
++	source := Source{Db: db}
++	for _, query := range []string{"SELECT sku FROM products", "SELECT sku FROM products LIMIT 1+1000000", "SELECT sku FROM products LIMIT 1,1000000"} {
++		rows, err := source.RunSQL(context.Background(), query, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		values, ok := rows.([]any)
++		if !ok || len(values) > 101 {
++			t.Fatalf("native result escaped row cap: %T %#v", rows, rows)
++		}
++	}
++	if _, err = source.RunSQL(context.Background(), "SELECT zeroblob(500000) AS payload", nil); err == nil {
++		t.Fatal("native inline byte budget was not enforced")
++	}
++}
