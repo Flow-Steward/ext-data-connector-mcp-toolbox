@@ -27,7 +27,11 @@ def main() -> int:
     module: Any = load_module(ROOT / "main.py", "toolbox_dataset_connector_main")
     module._TOOLBOX_COMMAND_OVERRIDE = [sys.executable, str(FAKE_TOOLBOX)]
     connection = {
-        "prebuilt": "postgres",
+        "prebuilt": (
+            "postgres"
+            if "postgres" in module.TOOLBOX_DATASET_PREBUILTS
+            else min(module.TOOLBOX_DATASET_PREBUILTS)
+        ),
         "host": "postgres.test",
         "port": "5432",
         "database": "toolbox_test",

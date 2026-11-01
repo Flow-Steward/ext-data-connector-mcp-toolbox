@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import os
 from pathlib import Path
 
 import yaml
@@ -49,6 +50,14 @@ def test_the_family_is_consistent() -> None:
         else:
             assert not contract.get("connection_types")
             assert not manifest.get("external_effects")
+        smoke = subprocess.run(
+            [sys.executable, "scripts/smoke_check.py"],
+            cwd=bundle,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONPATH": str(bundle)},
+        )
+        assert smoke.returncode == 0, smoke.stdout + smoke.stderr
 
 
 def test_every_variant_pins_both_runtime_targets() -> None:
