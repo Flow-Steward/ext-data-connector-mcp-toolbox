@@ -869,9 +869,9 @@ _READ_ONLY_FUNCTIONS = frozenset(
 
 
 def _sql_tokens(sql: str) -> list[tuple[str, str]]:
-    if "\\" in sql or re.search(r"\$[A-Za-z_](?a:\w)*\$|\$\$", sql):
+    if "\\" in sql or "$" in sql:
         raise ValueError(
-            "Read SQL cannot contain backslashes or dollar-quote delimiters; use bound parameters"
+            "Read SQL cannot contain backslashes or dollar-quote syntax (raw dollar characters); use bound parameters"
         )
     """Tokenize SQL code while deliberately excluding literal/comment contents."""
     tokens: list[tuple[str, str]] = []
@@ -947,9 +947,9 @@ def _sql_tokens(sql: str) -> list[tuple[str, str]]:
 
 
 def _strip_sql_comments(sql: str) -> str:
-    if "\\" in sql or re.search(r"\$[A-Za-z_](?a:\w)*\$|\$\$", sql):
+    if "\\" in sql or "$" in sql:
         raise ValueError(
-            "Read SQL cannot contain backslashes or dollar-quote delimiters; use bound parameters"
+            "Read SQL cannot contain backslashes or dollar-quote syntax (raw dollar characters); use bound parameters"
         )
     """Remove comments without touching SQL literals, so an appended cap stays executable."""
     result: list[str] = []
@@ -1078,9 +1078,9 @@ def _template_sql(definition: dict[str, Any], *, require_predicate: bool = True)
     sql = str(definition.get("sql") or definition.get("sql_template") or "").strip()
     if not sql:
         raise ValueError("query_definition_jsonb.sql is required")
-    if "\\" in sql or re.search(r"\$[A-Za-z_](?a:\w)*\$|\$\$", sql):
+    if "\\" in sql or "$" in sql:
         raise ValueError(
-            "Read SQL cannot contain backslashes or dollar-quote delimiters; use bound parameters"
+            "Read SQL cannot contain backslashes or dollar-quote syntax (raw dollar characters); use bound parameters"
         )
     normalized_sql = _strip_sql_comments(sql).strip()
     tokens = _sql_tokens(normalized_sql)
@@ -1286,9 +1286,9 @@ def _validate_query_scope(sql: str, allowed: dict[str, set[str] | None]) -> None
 
 def _limited_sql(prebuilt: str, sql: str, limit: int) -> str:
     """Apply a top-level, dialect-aware host row cap after lexical validation."""
-    if "\\" in sql or re.search(r"\$[A-Za-z_](?a:\w)*\$|\$\$", sql):
+    if "\\" in sql or "$" in sql:
         raise ValueError(
-            "Read SQL cannot contain backslashes or dollar-quote delimiters; use bound parameters"
+            "Read SQL cannot contain backslashes or dollar-quote syntax (raw dollar characters); use bound parameters"
         )
     normalized = _strip_sql_comments(sql).strip()
     tokens = _sql_tokens(normalized)
@@ -1365,9 +1365,9 @@ def _limited_sql(prebuilt: str, sql: str, limit: int) -> str:
 
 
 def _placeholder_occurrences(sql: str) -> list[tuple[int, int, str]]:
-    if "\\" in sql or re.search(r"\$[A-Za-z_](?a:\w)*\$|\$\$", sql):
+    if "\\" in sql or "$" in sql:
         raise ValueError(
-            "Read SQL cannot contain backslashes or dollar-quote delimiters; use bound parameters"
+            "Read SQL cannot contain backslashes or dollar-quote syntax (raw dollar characters); use bound parameters"
         )
     occurrences: list[tuple[int, int, str]] = []
     index = 0

@@ -154,3 +154,38 @@ def test_bound_values_may_contain_backslashes_and_dollar_text(guarded_runtime):
         bound = module._compile_bound_query(prebuilt, "SELECT :value AS value", {"value": value})
         assert json.loads(bound["params_json"]) == {"value": value}
         assert value not in bound["sql"]
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT $тэг$'$тэг$; DELETE FROM products; -- ' FROM products WHERE sku='a'",
+        "SELECT $💣$'$💣$; DELETE FROM products; -- ' FROM products WHERE sku='a'",
+        "SELECT '$' AS value LIMIT 1",
+        "SELECT price$usd FROM products LIMIT 1",
+    ],
+)
+def test_every_raw_dollar_is_rejected_before_read_parsing(guarded_runtime, sql):
+    module = guarded_runtime
+    prebuilt = sorted(module.TOOLBOX_DATASET_PREBUILTS)[0]
+    for call in [
+        module._sql_tokens,
+        module._strip_sql_comments,
+        module._placeholder_occurrences,
+        lambda value: module._template_sql({"sql": value}),
+        lambda value: module._limited_sql(prebuilt, value, 100),
+        lambda value: module._compile_bound_query(prebuilt, value, {}),
+    ]:
+        with pytest.raises(ValueError, match="raw dollar"):
+            call(sql)
+
+
+def test_generated_numbered_placeholders_and_unicode_dollar_values_remain_valid(guarded_runtime):
+    module = guarded_runtime
+    import json
+
+    value = "$тэг$ $💣$ $"
+    for prebuilt in module.TOOLBOX_DATASET_PREBUILTS:
+        bound = module._compile_bound_query(prebuilt, "SELECT :value AS value", {"value": value})
+        assert json.loads(bound["params_json"]) == {"value": value}
+        assert value not in bound["sql"]

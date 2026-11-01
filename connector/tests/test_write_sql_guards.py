@@ -89,3 +89,33 @@ def test_write_bound_values_keep_dollar_and_backslash_data():
     bound = module._compile_bound_query(prebuilt, sql, {"value": value}, occurrences=occurrences)
     assert json.loads(bound["params_json"]) == {"value": value}
     assert value not in bound["sql"]
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "UPDATE products SET name=$тэг$'$тэг$; DELETE FROM products; -- ' WHERE sku='a'",
+        "UPDATE products SET name=$💣$'$💣$; DELETE FROM products; -- ' WHERE sku='a'",
+        "UPDATE products SET name='$' WHERE sku='a'",
+        "UPDATE products SET price$usd=1 WHERE sku='a'",
+    ],
+)
+def test_every_raw_dollar_is_rejected_before_write_parsing(sql):
+    for call in [
+        lambda value: sql_writes.write_statement(value, prebuilt="postgres"),
+        lambda value: sql_writes._write_tokens(value, mysql=False, postgres=True),
+    ]:
+        with pytest.raises(ValueError, match="raw dollar"):
+            call(sql)
+
+
+def test_unicode_dollar_data_stays_separate_from_write_sql():
+    module = load_runtime()
+    prebuilt = sorted(module.TOOLBOX_DATASET_PREBUILTS)[0]
+    sql, occurrences = sql_writes.write_statement(
+        "UPDATE products SET name=:value", prebuilt=prebuilt
+    )
+    value = "$тэг$ $💣$ $"
+    bound = module._compile_bound_query(prebuilt, sql, {"value": value}, occurrences=occurrences)
+    assert json.loads(bound["params_json"]) == {"value": value}
+    assert value not in bound["sql"]

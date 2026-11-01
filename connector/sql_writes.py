@@ -112,8 +112,10 @@ def _write_tokens(
     sql: str, *, mysql: bool, postgres: bool
 ) -> tuple[list[tuple[str, int]], list[tuple[int, int, str]]]:
     """Scan code and placeholders without modifying literals or dialect comments."""
-    if re.search(r"\$[A-Za-z_][A-Za-z_0-9]*\$|\$\$", sql):
-        raise ValueError("Write SQL cannot contain dollar-quote delimiters; use bound parameters")
+    if "$" in sql:
+        raise ValueError(
+            "Write SQL cannot contain dollar-quote syntax (raw dollar characters); use bound parameters"
+        )
     tokens: list[tuple[str, int]] = []
     placeholders: list[tuple[int, int, str]] = []
     index, depth = 0, 0
@@ -210,8 +212,10 @@ def write_statement(value: Any, *, prebuilt: str) -> tuple[str, list[tuple[int, 
     """Validate one DML statement and return unchanged SQL with placeholder spans."""
     if not isinstance(value, str) or not value.strip() or len(value) > 65536:
         raise ValueError("sql must be nonempty text of at most 65536 characters")
-    if re.search(r"\$[A-Za-z_][A-Za-z_0-9]*\$|\$\$", value):
-        raise ValueError("Write SQL cannot contain dollar-quote delimiters; use bound parameters")
+    if "$" in value:
+        raise ValueError(
+            "Write SQL cannot contain dollar-quote syntax (raw dollar characters); use bound parameters"
+        )
     sql = value.strip()
     tokens, placeholders = _write_tokens(
         sql,
