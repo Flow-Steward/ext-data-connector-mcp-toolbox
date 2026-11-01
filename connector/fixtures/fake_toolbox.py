@@ -126,7 +126,7 @@ def main() -> int:
             if tool_name == "list_tables":
                 content = _list_tables()
             elif tool_name == "execute_sql":
-                content = [{"order_id": 1001, "status": "open"}]
+                content = [] if mode == "empty-write" else [{"order_id": 1001, "status": "open"}]
             else:
                 print(
                     json.dumps(
@@ -139,7 +139,11 @@ def main() -> int:
                     flush=True,
                 )
                 continue
-            if mode == "multiple-text-content":
+            if mode == "empty-content":
+                result = {"content": []}
+            elif mode == "empty-text":
+                result = {"content": [{"type": "text", "text": "[]"}]}
+            elif mode == "multiple-text-content":
                 result = {
                     "content": [{"type": "text", "text": json.dumps(item)} for item in content],
                     "isError": False,

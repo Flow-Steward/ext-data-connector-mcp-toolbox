@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+- Add workflow-visible parameterized INSERT, UPDATE and DELETE for PostgreSQL,
+  MySQL/MariaDB and MSSQL families using explicit host-resolved project connections.
+- Declare external write effects, suppress writes in test mode and report unknown
+  outcomes without promising safe retries. Dataset connectors remain read-only.
+- Normalize successful empty Toolbox responses as no returned rows.
+- Extend the live database checker with an owned-row write/read/delete roundtrip.
+
 ## 1.1.2
 
 - A saved query may use SQL keywords before a parenthesis: `JOIN … USING (id)`,

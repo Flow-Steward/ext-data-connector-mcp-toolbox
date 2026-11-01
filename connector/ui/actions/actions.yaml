@@ -1,4 +1,20 @@
 actions:
+  - action_id: execute_write
+    title: Execute database write
+    description: Run one parameterized INSERT, UPDATE or DELETE on the selected project connection.
+    workflow_visible: true
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    command_type: invoke_extension_action
+    mutates_platform: true
+    test_mode_behavior: suppress
+    parameters:
+      - {name: connection_ref, type: connection_ref, required: true}
+      - {name: sql, type: string, required: true}
+      - {name: params, type: object, required: false}
+      - {name: param_schema, type: object, required: false}
+    result_fields: [result.status, result.rows, result.returned_row_count]
+    error_codes: [invalid_payload, write_outcome_unknown]
   - action_id: test_connection
     workflow_visible: false
     title: Test database connection

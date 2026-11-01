@@ -93,29 +93,56 @@ def render(name: str) -> Path:
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     manifest["display_name"] = variant["display_name"]
     manifest["description"] = variant["summary"]
+    contract = manifest["runtime"]["extension_contract_v2"]
+    writer_types = contract.get("connection_types") or []
+    for writer in writer_types:
+        prebuilt_field = writer["config_schema"]["properties"]["prebuilt"]
+        prebuilt_field["enum"] = [value for value in prebuilt_field["enum"] if value in prebuilts]
+    writable = any(
+        writer["config_schema"]["properties"]["prebuilt"]["enum"] for writer in writer_types
+    )
+    if not writable:
+        contract.pop("connection_types", None)
+        contract["operation_manifest"] = [
+            row for row in contract["operation_manifest"] if row["operation_id"] != "execute_write"
+        ]
+        manifest.pop("external_effects", None)
+        actions_path = out / "ui" / "actions" / "actions.yaml"
+        actions = yaml.safe_load(actions_path.read_text(encoding="utf-8"))
+        actions["actions"] = [
+            row for row in actions["actions"] if row["action_id"] != "execute_write"
+        ]
+        actions_path.write_text(yaml.safe_dump(actions, sort_keys=False), encoding="utf-8")
     listing = manifest.setdefault("listing", {})
     listing["summary"] = variant["summary"]
     listing["tags"] = sorted({*listing.get("tags", []), *prebuilts})
     for connector in manifest["runtime"]["extension_contract_v2"]["dataset_connectors"]:
         connector["source_extension_name"] = variant["display_name"]
         catalog = [
-            entry for entry in connector["connector_catalog"] if entry["preset_config"]["prebuilt"] in prebuilts
+            entry
+            for entry in connector["connector_catalog"]
+            if entry["preset_config"]["prebuilt"] in prebuilts
         ]
         missing = sorted(set(prebuilts) - {entry["preset_config"]["prebuilt"] for entry in catalog})
         if missing:
             sys.exit(f"the shared connector catalog has no entry for {missing}")
         connector["connector_catalog"] = catalog
         _filter_prebuilt_enum(connector.get("connection_schema") or {}, prebuilts)
-    manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    manifest_path.write_text(
+        yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
 
     schema_path = out / "schemas" / "config.schema.yaml"
     schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
     _filter_prebuilt_enum(schema, prebuilts)
-    schema_path.write_text(yaml.safe_dump(schema, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    schema_path.write_text(
+        yaml.safe_dump(schema, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
 
     # Read by connector/main.py: the runtime offers what the binary was built for.
     (out / "variant.json").write_text(
-        json.dumps({"prebuilts": prebuilts, "display_name": variant["display_name"]}, indent=2) + "\n",
+        json.dumps({"prebuilts": prebuilts, "display_name": variant["display_name"]}, indent=2)
+        + "\n",
         encoding="utf-8",
     )
 
@@ -127,10 +154,14 @@ def render(name: str) -> Path:
     provenance_path = out / "THIRD_PARTY.yml"
     provenance = yaml.safe_load(provenance_path.read_text(encoding="utf-8"))
     build = provenance.setdefault("build", {})
-    build["script"] = "scripts/build_toolbox.sh (github.com/Flow-Steward/ext-data-connector-mcp-toolbox)"
+    build["script"] = (
+        "scripts/build_toolbox.sh (github.com/Flow-Steward/ext-data-connector-mcp-toolbox)"
+    )
     build.pop("excluded_native_sources", None)
     build["registered_prebuilts"] = toolbox_prebuilts
-    provenance_path.write_text(yaml.safe_dump(provenance, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    provenance_path.write_text(
+        yaml.safe_dump(provenance, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
     sums = ROOT / "sums" / f"{name}.sha256"
     if sums.is_file():
         shutil.copyfile(sums, out / "SHA256SUMS")

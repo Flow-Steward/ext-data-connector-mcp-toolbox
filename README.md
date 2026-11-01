@@ -20,6 +20,48 @@ Each database family is its own extension, installed from
 This repository is also **the worked example of a Flow Steward data connector**:
 copy it to build a driver for another database.
 
+## Workflow database writes
+
+The PostgreSQL, MySQL/MariaDB and Microsoft SQL Server extensions provide
+**Execute database write** (`execute_write`) alongside their read-only dataset
+connectors. Create a project connection of type **Toolbox SQL writer**, select
+its database type and credentials, then select that connection in an Extension
+tools workflow step. Existing dataset connections and saved SELECT queries stay
+read-only; the write action uses an explicit project connection.
+
+The action accepts one `INSERT`, `UPDATE` or `DELETE` statement. An `INSERT`
+can use the database's upsert syntax. Pass values through named placeholders
+and typed parameters rather than concatenating them into SQL:
+
+```yaml
+sql: UPDATE products SET stock = :stock WHERE sku = :sku
+params: {stock: 12, sku: A-1}
+param_schema:
+  type: object
+  properties:
+    stock: {type: integer}
+    sku: {type: string}
+```
+
+Supported values are strings, integers, finite numbers, booleans and null.
+DDL, transaction scripts and multiple statements are rejected. Test mode
+validates the input and suppresses writes. The host's external-effect ledger
+tracks the operation; a transport failure after dispatch reports
+`write_outcome_unknown` and must be inspected before retrying. It does not
+promise exactly-once database execution.
+
+Use bound parameters for values containing backslashes rather than SQL string
+escape syntax, whose meaning depends on the server's SQL mode. Executable MySQL
+comments are rejected; ordinary comments and quoted values are preserved.
+
+Results contain `status`, `rows` and `returned_row_count`. This count describes
+returned rows, **not affected rows**. A successful write without a result set
+returns an empty list; zero matching updates are still successful execution.
+
+Other database variants do not expose the write action. No database triggers
+are provided. The shared adapter and database-specific parameter binding are
+tested independently; live database coverage is reported separately.
+
 ## Requirements
 
 Every variant speaks the host contract `extension_host_v2` with its final

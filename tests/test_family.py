@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -26,6 +28,27 @@ def test_the_family_is_consistent() -> None:
         [sys.executable, str(ROOT / "scripts" / "check_family.py")], capture_output=True, text=True
     )
     assert done.returncode == 0, done.stderr
+
+    for variant_path in sorted((ROOT / "variants").glob("*.yaml")):
+        name = variant_path.stem
+        [bundle] = (ROOT / "build" / name).glob("flowsteward_*")
+        manifest = yaml.safe_load((bundle / "extension.yaml").read_text())
+        actions = yaml.safe_load((bundle / "ui/actions/actions.yaml").read_text())["actions"]
+        contract = manifest["runtime"]["extension_contract_v2"]
+        write_enabled = name in {"postgres", "mysql", "mssql"}
+        assert any(row["action_id"] == "execute_write" for row in actions) is write_enabled
+        assert (
+            any(row["operation_id"] == "execute_write" for row in contract["operation_manifest"])
+            is write_enabled
+        )
+        if write_enabled:
+            [writer] = contract["connection_types"]
+            offered = yaml.safe_load(variant_path.read_text())["prebuilts"]
+            assert set(writer["config_schema"]["properties"]["prebuilt"]["enum"]) == set(offered)
+            assert manifest["external_effects"][0]["operation_id"] == "execute_write"
+        else:
+            assert not contract.get("connection_types")
+            assert not manifest.get("external_effects")
 
 
 def test_every_variant_pins_both_runtime_targets() -> None:

@@ -2,7 +2,7 @@ manifest_version: 2
 lifecycle: {data_schema_version: 1, data_migrations: []}
 extension_id: flowsteward.toolbox-dataset-connector
 kind: tool_provider
-version: 1.1.2
+version: 1.2.0
 release_stage: active
 display_name: Toolbox Dataset Connector
 description: Dataset connector backed by a packaged Google MCP Toolbox for Databases runtime.
@@ -39,6 +39,12 @@ machine_auth:
 account_scope:
   scope_type: project
   description: Toolbox dataset connector connections are project-scoped and resolved through project connection config and secrets.
+external_effects:
+  - operation_id: execute_write
+    effect_kind: database_write
+    channel: toolbox
+    idempotency: required
+    test_mode_behavior: suppress
 schemas:
   config: schemas/config.schema.yaml
   secrets: schemas/secrets.schema.yaml # pragma: allowlist secret
@@ -59,6 +65,52 @@ action_manifest: ui/actions/actions.yaml
 runtime:
   contract_version: extension_host_v2
   extension_contract_v2:
+    connection_types:
+      - connection_type_id: toolbox_sql_writer
+        display_name: Toolbox SQL writer
+        description: Project connection for parameterized database writes from workflows.
+        config_schema:
+          type: object
+          additionalProperties: false
+          required: [prebuilt]
+          properties:
+            prebuilt:
+              type: string
+              title: Database type
+              enum: [postgres, alloydb-omni, alloydb-postgres, cloud-sql-postgres, mysql, mariadb, cloud-sql-mysql, mssql, cloud-sql-mssql]
+            host: {type: string, title: Host, minLength: 1}
+            port: {type: integer, title: Port, minimum: 1, maximum: 65535}
+            database: {type: string, title: Database, minLength: 1}
+            user: {type: string, title: User, minLength: 1}
+            query_params: {type: string, title: Connection query parameters}
+            project: {type: string, title: Cloud project, minLength: 1}
+            region: {type: string, title: Cloud region, minLength: 1}
+            cluster: {type: string, title: Cluster, minLength: 1}
+            instance: {type: string, title: Instance, minLength: 1}
+            ip_type: {type: string, title: IP type}
+          allOf:
+            - if:
+                properties: {prebuilt: {enum: [postgres, alloydb-omni, mysql, mariadb, mssql]}}
+                required: [prebuilt]
+              then:
+                required: [host, database, user]
+            - if:
+                properties: {prebuilt: {enum: [cloud-sql-postgres, cloud-sql-mysql, cloud-sql-mssql]}}
+                required: [prebuilt]
+              then:
+                required: [project, region, instance, database, user]
+            - if:
+                properties: {prebuilt: {const: alloydb-postgres}}
+                required: [prebuilt]
+              then:
+                required: [project, region, cluster, instance, database, user]
+        secret_schema:
+          type: object
+          additionalProperties: false
+          properties:
+            password: {type: string, title: Password} # pragma: allowlist secret
+        capabilities: {write_queries: true}
+        safety_profile: {stores_secret_values: false}
     dataset_connectors:
       - connector_id: toolbox_database
         connector_type_id: toolbox_database
@@ -238,6 +290,25 @@ runtime:
         preview_support: true
         schema_refresh_support: true
     operation_manifest:
+      - operation_id: execute_write
+        display_name: Execute database write
+        workflow_visible: true
+        operation_kind: action
+        category: database
+        description: Execute one parameterized INSERT, UPDATE or DELETE using the selected project connection. INSERT supports database-specific upsert syntax.
+        connection_type_ids: [toolbox_sql_writer]
+        required_scopes: [extension:invoke]
+        inputs:
+          - {name: connection_ref, value_type: connection_ref, required: true}
+          - {name: sql, value_type: text, required: true}
+          - {name: params, value_type: object, required: false}
+          - {name: param_schema, value_type: object, required: false}
+        outputs:
+          - {name: status, value_type: text}
+          - {name: rows, value_type: array}
+          - {name: returned_row_count, value_type: integer}
+        result_fields: [result.status, result.rows, result.returned_row_count]
+        error_codes: [invalid_payload, write_outcome_unknown]
       - operation_id: test_connection
         workflow_visible: false
         operation_kind: action

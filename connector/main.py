@@ -20,6 +20,8 @@ from typing import Any
 
 from flowsteward_extension_sdk import runtime_context_from_payload
 
+from sql_writes import write_input, write_statement
+
 _MESSAGE_ONLY_READ_ONLY_SELECT_STATEMENTS_ARE_ALLOWED = (
     "Only read-only SELECT statements are allowed"
 )
@@ -474,6 +476,7 @@ def _invoke_toolbox(
     if structured is not None:
         return structured
     parsed_content: list[Any] = []
+    parsed_any = False
     parse_error: ValueError | None = None
     for content in _as_list(result.get("content")):
         if isinstance(content, dict) and str(content.get("type") or "") == "text":
@@ -482,14 +485,19 @@ def _invoke_toolbox(
             except ValueError as exc:
                 parse_error = exc
                 continue
+            parsed_any = True
             if isinstance(parsed, list):
                 parsed_content.extend(parsed)
             else:
                 parsed_content.append(parsed)
     if parsed_content:
         return parsed_content[0] if len(parsed_content) == 1 else parsed_content
+    if parsed_any:
+        return []
     if parse_error is not None:
         raise parse_error
+    if result.get("content") == []:
+        return []
     return result
 
 
@@ -1469,11 +1477,18 @@ def _validate_declared_params(request: dict[str, Any], sql: str) -> None:
         raise ValueError(f"Query parameter(s) must be declared in param_schema_jsonb: {missing}")
 
 
-def _compile_bound_query(prebuilt: str, sql: str, params: dict[str, Any]) -> dict[str, Any]:
+def _compile_bound_query(
+    prebuilt: str,
+    sql: str,
+    params: dict[str, Any],
+    *,
+    occurrences: list[tuple[int, int, str]] | None = None,
+) -> dict[str, Any]:
     binding = _PARAMETER_BINDERS.get(prebuilt)
     if not binding:
         raise ValueError(f"No parameter binder is declared for Toolbox prebuilt '{prebuilt}'")
-    occurrences = _placeholder_occurrences(sql)
+    if occurrences is None:
+        occurrences = _placeholder_occurrences(sql)
     chunks: list[str] = []
     cursor = 0
     param_order: list[str] = []
@@ -1585,9 +1600,56 @@ def _execute_sql(request: dict[str, Any], *, preview: bool) -> dict[str, Any]:
     }
 
 
+def _execute_write(request: dict[str, Any]) -> dict[str, Any]:
+    try:
+        raw, config, secrets, test_mode = write_input(request, TOOLBOX_DATASET_PREBUILTS)
+        sql, occurrences = write_statement(raw.get("sql"), prebuilt=str(config["prebuilt"]))
+        params = _validated_params(
+            raw.get("param_schema", {}), [name for _, _, name in occurrences], raw.get("params", {})
+        )
+        bound_query = _compile_bound_query(
+            str(config["prebuilt"]), sql, params, occurrences=occurrences
+        )
+    except ValueError as exc:
+        response = _envelope(ok=False, errors=[_error("invalid_payload", str(exc))])
+        response.update(external_effect_status="failed", definitely_no_external_effect=True)
+        return response
+    if test_mode:
+        response = _envelope(ok=True, result={"test_mode_status": "suppressed"})
+        response.update(external_effect_status="suppressed", definitely_no_external_effect=True)
+        return response
+    try:
+        raw_rows = _invoke_toolbox(config, secrets, "execute_sql", bound_query, timeout_seconds=30)
+        rows = [_normalize_toolbox_value(row) for row in _toolbox_rows(raw_rows)]
+    except Exception:
+        # A server may have committed before the transport failed. Do not leak SQL,
+        # values or credentials, and do not tell the host that retrying is safe.
+        response = _envelope(
+            ok=False,
+            errors=[
+                _error(
+                    "write_outcome_unknown",
+                    "Database write outcome is unknown; inspect the database before retrying",
+                )
+            ],
+        )
+        response.update(
+            external_effect_status="timeout_unknown", definitely_no_external_effect=False
+        )
+        return response
+    response = _envelope(
+        ok=True,
+        result={"status": "executed", "rows": rows, "returned_row_count": len(rows)},
+    )
+    response["external_effect_status"] = "succeeded"
+    return response
+
+
 def handle_action(request: dict[str, Any]) -> dict[str, Any]:
     action = _as_dict(request.get("action"))
     action_id = str(action.get("action_id") or "").strip()
+    if action_id == "execute_write":
+        return _execute_write(request)
     if action_id not in {
         "test_connection",
         "introspect_schema",

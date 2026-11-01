@@ -88,6 +88,16 @@ Flow Steward Core does not import this package, does not open database drivers, 
 
 ## Saved Query Parameter Binding
 
+Workflow writes are a separate `execute_write` action for PostgreSQL,
+MySQL/MariaDB and MSSQL families. The host resolves a `toolbox_sql_writer`
+project connection and supplies it in `action.target.connection`; workflow input
+contains its matching `connection_ref`, one DML `sql` statement, a `params`
+object and a `param_schema` object. Config and secrets are never accepted from
+workflow input. The operation is workflow-visible, declares an external effect
+and suppresses outbound writes in test mode. Dataset queries below remain
+read-only. See the repository README for the write inputs, outputs and retry
+semantics.
+
 Saved SQL uses canonical value placeholders such as `:status`. The runtime scans SQL without treating literals, quoted identifiers, comments, or PostgreSQL casts as parameters, validates values against `param_schema_jsonb`, and compiles placeholders for the selected driver. SQL text and values cross MCP separately. The patched upstream execute tools pass those values to `RunSQL`; no runtime value is quoted, escaped, formatted, or concatenated into SQL text.
 
 The portable contract accepts only declared JSON primitives: strings, integers, finite numbers, booleans, and null. Arrays, objects, missing values, undeclared values, type mismatches, and non-finite numbers fail before Toolbox invocation. Parameters are values only and cannot select identifiers, operators, keywords, ordering directions, or SQL fragments.

@@ -595,7 +595,7 @@ def test_toolbox_runtime_supported_connectors_matches_manifest_catalog() -> None
     }
     operations = {row["operation_id"]: row for row in contract["operation_manifest"]}
     queries = {row["query_id"]: row for row in contract["resource_query_manifest"]}
-    assert set(operations) == {
+    expected_operations = {
         "test_connection",
         "introspect_schema",
         "validate_query",
@@ -603,6 +603,19 @@ def test_toolbox_runtime_supported_connectors_matches_manifest_catalog() -> None
         "execute_template",
         "infer_output_schema",
     }
+    if DATASET_PREBUILTS & {
+        "postgres",
+        "alloydb-omni",
+        "alloydb-postgres",
+        "cloud-sql-postgres",
+        "mysql",
+        "mariadb",
+        "cloud-sql-mysql",
+        "mssql",
+        "cloud-sql-mssql",
+    }:
+        expected_operations.add("execute_write")
+    assert set(operations) == expected_operations
     assert set(queries) == {
         "runtime_health",
         "supported_connectors",
