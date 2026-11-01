@@ -95,3 +95,62 @@ def test_unsafe_read_never_reaches_provider_even_without_effect_claim(
         module._execute_sql(
             {"runtime_context": {"test_mode": test_mode}, "action": {"input": {}}}, preview=False
         )
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT x$$ FROM products; DELETE FROM products; SELECT x$$ FROM products WHERE sku='a'",
+        "SELECT x$tag$ FROM products; DELETE FROM products; SELECT x$tag$ FROM products WHERE sku='a'",
+    ],
+)
+def test_dollar_quote_confusion_is_rejected_before_all_read_entrypoints(guarded_runtime, sql):
+    module = guarded_runtime
+    prebuilt = sorted(module.TOOLBOX_DATASET_PREBUILTS)[0]
+    calls = [
+        module._sql_tokens,
+        module._strip_sql_comments,
+        module._placeholder_occurrences,
+        lambda value: module._template_sql({"sql": value}),
+        lambda value: module._limited_sql(prebuilt, value, 100),
+        lambda value: module._compile_bound_query(prebuilt, value, {}),
+    ]
+    for call in calls:
+        with pytest.raises(ValueError, match="dollar-quote"):
+            call(sql)
+
+
+@pytest.mark.parametrize("test_mode", [False, True])
+def test_dollar_script_never_invokes_provider_without_write_claim(
+    guarded_runtime, monkeypatch, test_mode
+):
+    module = guarded_runtime
+    prebuilt = sorted(module.TOOLBOX_DATASET_PREBUILTS)[0]
+    monkeypatch.setattr(module, "_connection_config", lambda request: {"prebuilt": prebuilt})
+    monkeypatch.setattr(
+        module,
+        "_query_definition",
+        lambda request: {
+            "sql": "SELECT x$$ FROM products; DELETE FROM products; SELECT x$$ FROM products WHERE sku='a'"
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "_invoke_toolbox",
+        lambda *a, **k: pytest.fail("read script reached provider without a write claim"),
+    )
+    with pytest.raises(ValueError, match="dollar-quote"):
+        module._execute_sql(
+            {"runtime_context": {"test_mode": test_mode}, "action": {"input": {}}}, preview=False
+        )
+
+
+def test_bound_values_may_contain_backslashes_and_dollar_text(guarded_runtime):
+    module = guarded_runtime
+    import json
+
+    for prebuilt in module.TOOLBOX_DATASET_PREBUILTS:
+        value = r"C:\folder $$ $tag$"
+        bound = module._compile_bound_query(prebuilt, "SELECT :value AS value", {"value": value})
+        assert json.loads(bound["params_json"]) == {"value": value}
+        assert value not in bound["sql"]
