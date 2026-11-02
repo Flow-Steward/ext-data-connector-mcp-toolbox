@@ -475,12 +475,11 @@ def test_row_cap_uses_top_on_sql_server() -> None:
     )
 
 
-def test_comment_stripper_preserves_backslash_escaped_sql_literals() -> None:
+def test_comment_stripper_rejects_backslash_escaped_sql_literals() -> None:
     module = _runtime_module()
 
-    assert module._strip_sql_comments("SELECT 'a\\\\b' -- comment\nFROM events") == (
-        "SELECT 'a\\\\b' \nFROM events"
-    )
+    with pytest.raises(ValueError, match="backslash"):
+        module._strip_sql_comments("SELECT 'a\\\\b' -- comment\nFROM events")
 
 
 def test_row_cap_ignores_limit_inside_literals_and_trailing_comments(monkeypatch) -> None:
