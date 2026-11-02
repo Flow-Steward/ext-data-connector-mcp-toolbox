@@ -1,26 +1,36 @@
-# Flow Steward data connectors for Google MCP Toolbox
+# Legacy shared SQL connector build tooling
 
-Database drivers for [Flow Steward](https://github.com/Flow-Steward/flow-steward-app),
+This repository contains legacy shared source templates and build tooling for
+[Flow Steward](https://github.com/Flow-Steward/flow-steward-app) SQL connectors
 built on [Google MCP Toolbox for Databases](https://github.com/googleapis/mcp-toolbox).
-Each database family is its own extension, installed from
-**Extensions → Marketplace** — install only the ones you use.
+It is **not an installable common extension**. Install the package published by
+the repository for the database you use; each database has its own extension,
+native driver build, release version and runtime-target ZIPs.
 
-| Extension | Connection types |
-| --- | --- |
-| `flowsteward.data-connector-mcp-toolbox-postgres` | PostgreSQL, AlloyDB Omni, AlloyDB for PostgreSQL, Cloud SQL for PostgreSQL |
-| `flowsteward.data-connector-mcp-toolbox-mysql` | MySQL, MariaDB, Cloud SQL for MySQL |
-| `flowsteward.data-connector-mcp-toolbox-mssql` | Microsoft SQL Server, Cloud SQL for SQL Server |
-| `flowsteward.data-connector-mcp-toolbox-spanner` | Spanner (GoogleSQL), Spanner (PostgreSQL) |
-| `flowsteward.data-connector-mcp-toolbox-sqlite` | SQLite |
-| `flowsteward.data-connector-mcp-toolbox-clickhouse` | ClickHouse |
-| `flowsteward.data-connector-mcp-toolbox-snowflake` | Snowflake |
-| `flowsteward.data-connector-mcp-toolbox-singlestore` | SingleStore |
-| `flowsteward.data-connector-mcp-toolbox-oceanbase` | OceanBase |
+| Database | Extension repository | Package identity |
+| --- | --- | --- |
+| PostgreSQL, AlloyDB and Cloud SQL for PostgreSQL | [ext-data-postgres](https://github.com/Flow-Steward/ext-data-postgres) | `flowsteward.data-connector-mcp-toolbox-postgres` |
+| MySQL, MariaDB and Cloud SQL for MySQL | [ext-data-mysql](https://github.com/Flow-Steward/ext-data-mysql) | `flowsteward.data-connector-mcp-toolbox-mysql` |
+| Microsoft SQL Server and Cloud SQL for SQL Server | [ext-data-mssql](https://github.com/Flow-Steward/ext-data-mssql) | `flowsteward.data-connector-mcp-toolbox-mssql` |
+| SQLite | [ext-data-sqlite](https://github.com/Flow-Steward/ext-data-sqlite) | `flowsteward.data-connector-mcp-toolbox-sqlite` |
+| ClickHouse | [ext-data-clickhouse](https://github.com/Flow-Steward/ext-data-clickhouse) | `flowsteward.data-connector-mcp-toolbox-clickhouse` |
+| Snowflake | [ext-data-snowflake](https://github.com/Flow-Steward/ext-data-snowflake) | `flowsteward.data-connector-mcp-toolbox-snowflake` |
+| SingleStore | [ext-data-singlestore](https://github.com/Flow-Steward/ext-data-singlestore) | `flowsteward.data-connector-mcp-toolbox-singlestore` |
+| OceanBase | [ext-data-oceanbase](https://github.com/Flow-Steward/ext-data-oceanbase) | `flowsteward.data-connector-mcp-toolbox-oceanbase` |
+| Spanner (GoogleSQL and PostgreSQL dialects) | [ext-data-spanner](https://github.com/Flow-Steward/ext-data-spanner) | `flowsteward.data-connector-mcp-toolbox-spanner` |
 
-This repository is also **the worked example of a Flow Steward data connector**:
-copy it to build a driver for another database.
+A shared source template, pinned Toolbox version or coordinated maintenance
+batch does not mean that one extension bundles the other databases' drivers.
+The build tooling selects the source and tool packages required by each
+variant. The database repository's current README, manifests and release assets
+are the authority for installation and supported behavior.
 
-## Workflow database writes
+Existing tags and release assets through the 1.2 series remain historical
+artifacts. They are not replaced, retagged or used as a recommendation to install
+a generic Data Connector MCP Toolbox extension. The sections below preserve
+the shared implementation and reproducible-build reference for maintainers.
+
+## Shared implementation reference: workflow database writes
 
 The PostgreSQL, MySQL/MariaDB and Microsoft SQL Server extensions provide
 **Execute database write** (`execute_write`) alongside their read-only dataset
@@ -62,7 +72,7 @@ Other database variants do not expose the write action. No database triggers
 are provided. The shared adapter and database-specific parameter binding are
 tested independently; live database coverage is reported separately.
 
-## Requirements
+## Shared template requirements
 
 Every variant speaks the host contract `extension_host_v2` with its final
 execution scope and is built on `flowsteward-extension-sdk` 0.4.0 (the wheel
@@ -70,7 +80,7 @@ for tests is `connector/dev-wheels/`); an older Flow Steward Core does not run
 it. Every variant carries the logo `connector/icon.png` (the Flow Steward wave
 mark).
 
-## How it is organised
+## How the build tooling is organised
 
 - `connector/` — the one shared implementation: the extension runtime
   (`main.py`), schemas, declarative UI and tests. It knows every database above.
@@ -88,7 +98,7 @@ mark).
 - `scripts/package_variant.py` — one archive per runtime target
   (`linux-amd64`, `linux-arm64`), in the format Flow Steward's installer expects.
 
-## Add another database
+## Extending the shared template
 
 Google MCP Toolbox ships ~40 sources; this repository offers the ones whose SQL
 execution our parameter-binding patch (`scripts/patches/`) covers.
@@ -101,14 +111,17 @@ execution our parameter-binding patch (`scripts/patches/`) covers.
 3. Add `variants/<name>.yaml` with `prebuilts: [<prebuilt>]`.
 4. Build it: `python3 scripts/render_variant.py <name> && sh scripts/build_toolbox.sh <name>`,
    then record `sums/<name>.sha256` (`cd build/<name> && sha256sum bin/*/toolbox`).
-5. Tag a release. Then add the new extension to the
-   [catalog](https://github.com/Flow-Steward/extensions) with one entry file.
+5. Maintain and validate the resulting extension in its own database repository.
+   Publish its package there, then register that repository in the
+   [catalog](https://github.com/Flow-Steward/extensions).
 
 ## Fixing a bug, and not breaking another database
 
-The connector code is shared, so a fix in `connector/` reaches every variant, and
-the family releases under one version. CI runs on every push and pull request,
-so a change made for MySQL is proven against PostgreSQL before it is merged:
+The legacy factory renders the shared `connector/` template into the variants
+listed in `variants/`. A template change can therefore affect several rendered
+outputs. The existing checks below describe the shared factory's validation
+surfaces; their presence is not evidence that a particular revision has passed
+or that independent database repositories have been updated:
 
 | Check | Runs | Catches |
 | --- | --- | --- |
@@ -120,16 +133,31 @@ so a change made for MySQL is proven against PostgreSQL before it is merged:
 | `scripts/live_check.py` | variants with `live_checks:` | schema reading and parameter binding against a real PostgreSQL and MySQL |
 | `scripts/catalog_check.py` | per variant | an archive the extension catalog would refuse |
 
-Nothing is listed by hand per variant: ids come from the file name, the binary's
-types from Toolbox's own prebuilt YAML, the runtime's offer from `variant.json`.
-Adding a variant file is all it takes for every check to cover it.
+Within this factory, identities come from the variant file name, native types
+from Toolbox's prebuilt YAML, and runtime offers from `variant.json`. These
+inputs support reviewing related variants together. Rendering a template here
+does not update or release the independent database repositories.
 
-## Release
+## Shared maintenance and release ownership
 
-Push a tag equal to `connector/extension.yaml`'s version (`v1.0.1`). The
-**Release** workflow builds every variant in parallel, refuses binaries that
-differ from `sums/`, and publishes one GitHub Release with
-`<extension_id>-<version>-<target>.zip` for each variant and target.
+For a shared SDK, Toolbox pin or adapter fix, use `variants/` as the inventory
+of factory variants and review `connector/`, the source patches and affected
+`sums/<name>.sha256` together. The existing render, build, package and check
+scripts operate on this repository's `build/<name>/` outputs. There is no
+cross-repository update or publication command in this tooling.
+
+Apply the applicable change separately in each affected database repository,
+review its database-specific behavior, run its required checks, and publish its
+own version and architecture packages. A coordinated batch may share a source
+revision or dependency pin while retaining separate package identities, binary
+contents, checksums and release histories. Do not copy another database's
+executable into an extension.
+
+The retained historical Release workflow reads `connector/extension.yaml` and
+was designed to publish every variant under one tag in this repository. It is
+preserved as build history, not the release path for the independent database
+extensions. Publish new database releases from the repositories linked above;
+leave this repository's existing tags and assets unchanged.
 
 ## Licence
 
