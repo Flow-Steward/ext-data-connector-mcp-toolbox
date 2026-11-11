@@ -2,7 +2,7 @@
 psycopg
 psycopg-binary
 typing_extensions
-pytest
+pytest==9.0.3
 iniconfig
 packaging
 pluggy
