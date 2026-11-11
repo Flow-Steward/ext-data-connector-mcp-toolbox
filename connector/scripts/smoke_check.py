@@ -11,6 +11,8 @@ from types import ModuleType
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+# Match direct execution of main.py when loading its sibling modules.
+sys.path.insert(0, str(ROOT))
 FAKE_TOOLBOX = ROOT / "fixtures" / "fake_toolbox.py"
 
 
