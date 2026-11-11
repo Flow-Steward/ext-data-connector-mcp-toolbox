@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   family:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       variants: ${{ steps.list.outputs.variants }}
     steps:
@@ -35,7 +35,7 @@ jobs:
 
   variant:
     needs: family
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
