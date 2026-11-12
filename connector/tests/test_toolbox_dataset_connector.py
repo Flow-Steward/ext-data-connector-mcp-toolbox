@@ -744,7 +744,7 @@ def test_toolbox_dataset_connector_reads_secret_values_from_refs_shape() -> None
 
 @offered("postgres")
 @pytest.mark.parametrize("inherited_password", [None, "unrelated-parent-password"])
-def test_postgres_optional_password_is_present_but_empty_when_unset(
+def test_postgres_optional_password_uses_fresh_placeholder_when_unset(
     monkeypatch, inherited_password: str | None
 ) -> None:
     if inherited_password is None:
@@ -754,8 +754,13 @@ def test_postgres_optional_password_is_present_but_empty_when_unset(
 
     module = _load_main_module()
     env = module._toolbox_env(toolbox_postgres_config(), {})  # type: ignore[attr-defined]
+    second_env = module._toolbox_env(toolbox_postgres_config(), {})  # type: ignore[attr-defined]
 
-    assert env["POSTGRES_PASSWORD"] == ""
+    password_placeholder = env["POSTGRES_PASSWORD"]
+    assert len(password_placeholder) == 64
+    assert all(character in "0123456789abcdef" for character in password_placeholder)
+    assert password_placeholder != inherited_password
+    assert second_env["POSTGRES_PASSWORD"] != password_placeholder
 
 
 @offered("postgres")

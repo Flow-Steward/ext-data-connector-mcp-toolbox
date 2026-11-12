@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- PostgreSQL connections without a configured password now pass a fresh opaque value to the Toolbox prebuilt's required configuration field. PostgreSQL trust authentication can proceed without a password; password-authenticated servers still require the configured or stored credential.
+
 ## 1.2.0
 
 - Add workflow-visible parameterized INSERT, UPDATE and DELETE for PostgreSQL,

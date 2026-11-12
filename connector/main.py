@@ -366,8 +366,10 @@ def _toolbox_env(config: dict[str, Any], secret_refs: dict[str, Any]) -> dict[st
     prebuilt = _runtime_prebuilt(config)
     env = dict(os.environ)
     if prebuilt == "postgres":
-        # Toolbox interpolates this variable even when PostgreSQL auth is passwordless.
-        env["POSTGRES_PASSWORD"] = ""  # nosec B105 - Empty interpolation fallback, not a credential.
+        # Toolbox requires a nonempty Password during config validation, before PostgreSQL
+        # authentication. A fresh opaque value satisfies that field without borrowing an
+        # ambient credential; trust auth ignores it, while password auth still rejects it.
+        env["POSTGRES_PASSWORD"] = os.urandom(32).hex()
     explicit_env = _as_dict(config.get("env"))
     secret_env = _as_dict(secret_refs.get("env"))
     secrets = _secret_ref_values(secret_refs)
@@ -432,7 +434,7 @@ def _invoke_toolbox(
                 "params": {
                     "protocolVersion": "2025-06-18",
                     "capabilities": {},
-                    "clientInfo": {"name": EXTENSION_ID, "version": "1.2.0"},
+                    "clientInfo": {"name": EXTENSION_ID, "version": "1.2.1"},
                 },
             },
         )
