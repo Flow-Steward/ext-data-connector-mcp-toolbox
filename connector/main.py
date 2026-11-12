@@ -365,6 +365,9 @@ def _toolbox_command(_config: dict[str, Any]) -> list[str]:
 def _toolbox_env(config: dict[str, Any], secret_refs: dict[str, Any]) -> dict[str, str]:
     prebuilt = _runtime_prebuilt(config)
     env = dict(os.environ)
+    if prebuilt == "postgres":
+        # Toolbox interpolates this variable even when PostgreSQL auth is passwordless.
+        env["POSTGRES_PASSWORD"] = ""  # nosec B105 - Empty interpolation fallback, not a credential.
     explicit_env = _as_dict(config.get("env"))
     secret_env = _as_dict(secret_refs.get("env"))
     secrets = _secret_ref_values(secret_refs)

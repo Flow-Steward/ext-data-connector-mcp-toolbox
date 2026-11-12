@@ -742,8 +742,58 @@ def test_toolbox_dataset_connector_reads_secret_values_from_refs_shape() -> None
     assert env["POSTGRES_PASSWORD"] == "super-secret"
 
 
+@offered("postgres")
+@pytest.mark.parametrize("inherited_password", [None, "unrelated-parent-password"])
+def test_postgres_optional_password_is_present_but_empty_when_unset(
+    monkeypatch, inherited_password: str | None
+) -> None:
+    if inherited_password is None:
+        monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+    else:
+        monkeypatch.setenv("POSTGRES_PASSWORD", inherited_password)
+
+    module = _load_main_module()
+    env = module._toolbox_env(toolbox_postgres_config(), {})  # type: ignore[attr-defined]
+
+    assert env["POSTGRES_PASSWORD"] == ""
+
+
+@offered("postgres")
+@pytest.mark.parametrize(
+    ("connection_values", "secret_refs", "expected_password"),
+    [
+        ({"password": "direct-password"}, {}, "direct-password"),
+        ({"env": {"POSTGRES_PASSWORD": "configured-password"}}, {}, "configured-password"),
+        ({}, {"refs": {"password": "stored-password"}}, "stored-password"),
+        (
+            {"env": {"POSTGRES_PASSWORD": "configured-password"}},
+            {"env": {"POSTGRES_PASSWORD": "explicit-secret-password"}},
+            "explicit-secret-password",
+        ),
+    ],
+)
+def test_postgres_optional_password_preserves_configured_and_stored_values(
+    connection_values: dict[str, dict[str, str]],
+    secret_refs: dict[str, dict[str, str]],
+    expected_password: str,
+) -> None:
+    module = _load_main_module()
+    config = {**toolbox_postgres_config(), **connection_values}
+
+    env = module._toolbox_env(config, secret_refs)  # type: ignore[attr-defined]
+
+    assert env["POSTGRES_PASSWORD"] == expected_password
+
+
 @offered("sqlite")
-def test_sqlite_database_config_is_forwarded_to_the_packaged_runtime() -> None:
+@pytest.mark.parametrize("inherited_password", [None, "sqlite-parent-password"])
+def test_sqlite_database_config_is_forwarded_to_the_packaged_runtime(
+    monkeypatch, inherited_password: str | None
+) -> None:
+    if inherited_password is None:
+        monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+    else:
+        monkeypatch.setenv("POSTGRES_PASSWORD", inherited_password)
     module = _load_main_module()
 
     env = module._toolbox_env(  # type: ignore[attr-defined]
@@ -752,6 +802,10 @@ def test_sqlite_database_config_is_forwarded_to_the_packaged_runtime() -> None:
     )
 
     assert env["SQLITE_DATABASE"] == "/srv/external/customer.db"
+    if inherited_password is None:
+        assert "POSTGRES_PASSWORD" not in env
+    else:
+        assert env["POSTGRES_PASSWORD"] == inherited_password
 
 
 @pytest.mark.parametrize(
