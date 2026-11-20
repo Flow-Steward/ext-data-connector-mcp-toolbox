@@ -8,6 +8,19 @@ import pytest
 
 import sql_writes
 
+
+@pytest.mark.parametrize("prebuilt", ["mssql", "cloud-sql-mssql"])
+@pytest.mark.parametrize("line_end", ["\n", "\r\n", "\r"])
+def test_sql_server_comment_preserves_parameters_on_the_next_line(prebuilt, line_end):
+    sql = f"UPDATE products -- update the display name{line_end}SET name = :name"
+
+    statement, placeholders = sql_writes.write_statement(sql, prebuilt=prebuilt)
+
+    start = sql.index(":name")
+    assert statement == sql
+    assert placeholders == [(start, start + len(":name"), "name")]
+
+
 PAYLOADS = [
     "UPDATE products SET x$$=1; DELETE FROM products; UPDATE products SET x$$=2 WHERE sku='a'",
     "UPDATE products SET x$tag$=1; DROP TABLE products; UPDATE products SET x$tag$=2 WHERE sku='a'",

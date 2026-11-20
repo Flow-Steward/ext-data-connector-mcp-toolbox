@@ -20,6 +20,7 @@ WRITE_PREBUILTS = frozenset(
     }
 )
 _INPUT_FIELDS = frozenset({"connection_ref", "sql", "params", "param_schema"})
+_SQL_SERVER_LINE_END = re.compile(r"[\r\n]")
 _FORBIDDEN_WORDS = frozenset(
     {
         "alter",
@@ -128,7 +129,11 @@ def _write_tokens(
         if (pair == "--" and (not mysql or index + 2 == len(sql) or ord(sql[index + 2]) <= 32)) or (
             mysql and char == "#"
         ):
-            end = sql.find("\n", index)
+            if mysql or postgres:
+                end = sql.find("\n", index + 2)
+            else:
+                line_end = _SQL_SERVER_LINE_END.search(sql, index + 2)
+                end = line_end.start() if line_end else -1
             index = len(sql) if end < 0 else end + 1
             continue
         if pair == "/*":
