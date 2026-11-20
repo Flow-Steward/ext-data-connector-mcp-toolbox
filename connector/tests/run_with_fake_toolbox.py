@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-# Match direct execution of main.py when loading its sibling modules.
-sys.path.insert(0, str(ROOT))
 
 
 def main() -> int:
+    # Match direct execution of main.py when loading its sibling modules.
+    sys.path.insert(0, str(ROOT))
     spec = importlib.util.spec_from_file_location("toolbox_runtime_under_test", ROOT / "main.py")
     if spec is None or spec.loader is None:
         raise RuntimeError("Unable to load Toolbox extension runtime")

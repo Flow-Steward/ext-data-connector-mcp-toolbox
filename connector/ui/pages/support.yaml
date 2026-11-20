@@ -1,0 +1,15 @@
+page_id: support
+title: Support
+description: Help with the legacy shared SQL connector tooling.
+project_scoped: false
+components:
+  - component_id: support_contact
+    type: markdown
+    title: Report a tooling issue
+    body: |
+      This repository maintains shared source templates and build tooling. For installation and support for a database extension, use its repository listed in the [tooling documentation](https://github.com/Flow-Steward/ext-data-connector-mcp-toolbox#legacy-shared-sql-connector-build-tooling).
+
+      - [Browse existing tooling issues](https://github.com/Flow-Steward/ext-data-connector-mcp-toolbox/issues)
+      - [Report a tooling issue](https://github.com/Flow-Steward/ext-data-connector-mcp-toolbox/issues/new/choose)
+
+      Include the variant, the tooling revision and the error you observed. Issues are public. Keep credentials and customer data out of reports.

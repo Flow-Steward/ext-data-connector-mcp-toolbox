@@ -31,7 +31,7 @@ FOR_EACH_STEP_SCOPE = {
 ROOT = Path(__file__).resolve().parents[3]
 EXTENSION_ROOT = Path(__file__).resolve().parents[1]
 FAKE_TOOLBOX = EXTENSION_ROOT / "fixtures" / "fake_toolbox.py"
-TEST_RUNTIME = EXTENSION_ROOT / "fixtures" / "run_with_fake_toolbox.py"
+TEST_RUNTIME = EXTENSION_ROOT / "tests" / "run_with_fake_toolbox.py"
 MAX_PACKAGE_BYTES = 150 * 1024 * 1024
 CONFIG_SCHEMA = yaml.safe_load(
     (EXTENSION_ROOT / "schemas" / "config.schema.yaml").read_text(encoding="utf-8")
@@ -570,6 +570,26 @@ def test_toolbox_dataset_connector_manifest_is_author_friendly() -> None:
     )["actions"]
     assert all("Postgres" not in str(action.get("title") or "") for action in actions)
     assert all("Postgres" not in str(action.get("description") or "") for action in actions)
+
+
+@pytest.mark.variant_contract
+def test_toolbox_dataset_connector_registers_global_support() -> None:
+    descriptor = yaml.safe_load((EXTENSION_ROOT / "extension.yaml").read_text(encoding="utf-8"))
+    ui_manifest = EXTENSION_ROOT / descriptor["ui_manifest"]
+    registrations = yaml.safe_load(ui_manifest.read_text(encoding="utf-8"))["pages"]
+    pages = [
+        yaml.safe_load((ui_manifest.parent / page["ref"]).read_text(encoding="utf-8"))
+        for page in registrations
+    ]
+    [support] = [page for page in pages if page["page_id"] == "support"]
+    assert support["title"] == "Support"
+    assert support["project_scoped"] is False
+    issues_url = descriptor["vendor"]["support_url"]
+    markdown = "\n".join(
+        component["body"] for component in support["components"] if component["type"] == "markdown"
+    )
+    assert f"]({issues_url})" in markdown
+    assert f"]({issues_url}/new/choose)" in markdown
 
 
 def test_toolbox_runtime_supported_connectors_matches_manifest_catalog() -> None:
